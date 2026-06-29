@@ -1,5 +1,39 @@
 create extension if not exists pgcrypto;
 
+create table if not exists empresas (
+  id uuid primary key default gen_random_uuid(),
+  nombre text not null,
+  rfc text,
+  personalidad_juridica text,
+  telefono text,
+  fax text,
+  correo text,
+  calle_numero text,
+  colonia text,
+  codigo_postal text,
+  municipio_delegacion text,
+  entidad_federativa text,
+  numero_escritura_constitutiva text,
+  fecha_escritura_constitutiva date,
+  nombre_notario text,
+  notaria_numero text,
+  lugar_notaria text,
+  registro_publico_propiedad text,
+  fecha_registro_publico date,
+  relacion_socios text,
+  objeto_social text,
+  representante_legal text,
+  escritura_facultades text,
+  notaria_facultades_numero text,
+  lugar_notaria_facultades text,
+  fecha_facultades date,
+  notario_facultades text,
+  reformas text,
+  observaciones text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists dependencias (
   id uuid primary key default gen_random_uuid(),
   nombre text not null,
@@ -109,6 +143,9 @@ begin
   return new;
 end;
 $$ language plpgsql;
+
+drop trigger if exists set_empresas_updated_at on empresas;
+create trigger set_empresas_updated_at before update on empresas for each row execute function set_updated_at();
 
 drop trigger if exists set_dependencias_updated_at on dependencias;
 create trigger set_dependencias_updated_at before update on dependencias for each row execute function set_updated_at();

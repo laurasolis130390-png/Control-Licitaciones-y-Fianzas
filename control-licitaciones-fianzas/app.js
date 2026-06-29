@@ -1,5 +1,6 @@
 const modules = [
   ["Inicio", "icon-home", true],
+  ["Empresas", "icon-building"],
   ["Licitaciones", "icon-file"],
   ["Fianzas y Garantias", "icon-shield"],
   ["Liberaciones", "icon-stamp"],
@@ -10,6 +11,42 @@ const modules = [
 ];
 
 const moduleDefinitions = {
+  Empresas: {
+    table: "empresas",
+    title: "Empresas",
+    subtitle: "Datos fiscales, legales, socios, representante y reformas.",
+    primary: "nombre",
+    fields: [
+      ["nombre", "Nombre o razon social", "text", true],
+      ["rfc", "Registro Federal de Contribuyentes", "text"],
+      ["personalidad_juridica", "Personalidad juridica", "select", false, ["Persona moral", "Persona fisica", "Sociedad anonima", "Sociedad de responsabilidad limitada", "Otra"]],
+      ["telefono", "Telefono", "tel"],
+      ["fax", "Fax", "tel"],
+      ["correo", "Correo electronico", "email"],
+      ["calle_numero", "Calle y numero", "text"],
+      ["colonia", "Colonia", "text"],
+      ["codigo_postal", "Codigo postal", "text"],
+      ["municipio_delegacion", "Municipio o delegacion", "text"],
+      ["entidad_federativa", "Entidad federativa", "text"],
+      ["numero_escritura_constitutiva", "Numero de escritura publica constitutiva", "text"],
+      ["fecha_escritura_constitutiva", "Fecha de escritura constitutiva", "date"],
+      ["nombre_notario", "Nombre del notario", "text"],
+      ["notaria_numero", "Notaria numero", "text"],
+      ["lugar_notaria", "Lugar de la notaria", "text"],
+      ["registro_publico_propiedad", "Registro publico de la propiedad", "text"],
+      ["fecha_registro_publico", "Fecha de registro publico", "date"],
+      ["relacion_socios", "Relacion de socios", "textarea"],
+      ["objeto_social", "Descripcion del objeto social", "textarea"],
+      ["representante_legal", "Representante o apoderado legal", "text"],
+      ["escritura_facultades", "Escritura que acredita personalidad y facultades", "text"],
+      ["notaria_facultades_numero", "Notaria numero de facultades", "text"],
+      ["lugar_notaria_facultades", "Lugar de la notaria de facultades", "text"],
+      ["fecha_facultades", "Fecha de facultades", "date"],
+      ["notario_facultades", "Notario de facultades", "text"],
+      ["reformas", "Reformas o modificaciones", "textarea"],
+      ["observaciones", "Observaciones", "textarea"],
+    ],
+  },
   Licitaciones: {
     table: "licitaciones",
     title: "Licitaciones",
@@ -19,7 +56,7 @@ const moduleDefinitions = {
       ["dependencia", "Dependencia", "text"],
       ["nombre", "Nombre de licitacion", "text", true],
       ["numero", "Numero de licitacion", "text"],
-      ["empresa_participante", "Empresa participante", "text"],
+      ["empresa_participante", "Empresa participante", "relation", false, "empresas"],
       ["fecha_publicacion", "Fecha de publicacion", "date"],
       ["fecha_visita", "Fecha de visita", "date"],
       ["hora_visita", "Hora de visita", "time"],
@@ -214,7 +251,16 @@ async function loadStore() {
   }
 
   try {
-    const entries = await Promise.all(tableNames.map(async (table) => [table, await supabaseRequest(table, { query: "?select=*&order=created_at.desc" })]));
+    const entries = await Promise.all(
+      tableNames.map(async (table) => {
+        try {
+          return [table, await supabaseRequest(table, { query: "?select=*&order=created_at.desc" })];
+        } catch (error) {
+          console.error(error);
+          return [table, localStore[table] || []];
+        }
+      }),
+    );
     const remoteStore = Object.fromEntries(entries);
     store = await mergeLocalIntoSupabase(localStore, remoteStore);
     saveLocalStore();
@@ -757,6 +803,14 @@ function renderField([name, label, type, required, options], record = {}, defini
 }
 
 function getRelationOptions(table, record, definition) {
+  if (table === "empresas") {
+    const options = store.empresas.map((item) => [item.nombre, `${item.nombre}${item.rfc ? ` · ${item.rfc}` : ""}`]);
+    if (record?.empresa_participante && !options.some(([value]) => value === record.empresa_participante)) {
+      options.unshift([record.empresa_participante, record.empresa_participante]);
+    }
+    return options;
+  }
+
   if (table === "licitaciones") {
     const options = store.licitaciones.map((item) => [item.nombre, `${item.nombre}${item.numero ? ` · ${item.numero}` : ""}`]);
     if (record?.licitacion_relacionada && !options.some(([value]) => value === record.licitacion_relacionada)) {
@@ -780,7 +834,7 @@ function getRelationOptions(table, record, definition) {
 
 function renderRecord(record, definition) {
   const title = record[definition.primary] || "Sin titulo";
-  const meta = record.licitacion_relacionada || record.dependencia || record.tipo_documento || record.numero || "Sin relacion";
+  const meta = getRecordMeta(record, definition);
   const status = record.estatus || record.prioridad || record.tipo_documento || "Registrado";
   const schedule = definition.table === "licitaciones" ? renderBidSchedule(record) : "";
   return `
@@ -797,6 +851,14 @@ function renderRecord(record, definition) {
       </div>
     </div>
   `;
+}
+
+function getRecordMeta(record, definition) {
+  if (definition.table === "empresas") {
+    return [record.rfc, record.personalidad_juridica, record.correo].filter(Boolean).join(" · ") || "Sin datos fiscales";
+  }
+
+  return record.licitacion_relacionada || record.dependencia || record.tipo_documento || record.numero || "Sin relacion";
 }
 
 function escapeHtml(value) {
