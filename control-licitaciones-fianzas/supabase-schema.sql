@@ -30,9 +30,74 @@ create table if not exists empresas (
   notario_facultades text,
   reformas text,
   observaciones text,
+  tianguis_digital_numero text,
+  tianguis_digital_pdf text,
+  tianguis_digital_pdf_nombre text,
+  tianguis_digital_fecha date,
+  repse_numero text,
+  repse_pdf text,
+  repse_pdf_nombre text,
+  repse_fecha date,
+  constancia_situacion_fiscal_numero text,
+  constancia_situacion_fiscal_pdf text,
+  constancia_situacion_fiscal_pdf_nombre text,
+  constancia_situacion_fiscal_fecha date,
+  opinion_sat_numero text,
+  opinion_sat_pdf text,
+  opinion_sat_pdf_nombre text,
+  opinion_sat_fecha date,
+  opinion_imss_numero text,
+  opinion_imss_pdf text,
+  opinion_imss_pdf_nombre text,
+  opinion_imss_fecha date,
+  opinion_infonavit_numero text,
+  opinion_infonavit_pdf text,
+  opinion_infonavit_pdf_nombre text,
+  opinion_infonavit_fecha date,
+  caratula_banco_numero text,
+  caratula_banco_pdf text,
+  caratula_banco_pdf_nombre text,
+  caratula_banco_fecha date,
+  comprobante_domicilio_numero text,
+  comprobante_domicilio_pdf text,
+  comprobante_domicilio_pdf_nombre text,
+  comprobante_domicilio_fecha date,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table empresas add column if not exists tianguis_digital_numero text;
+alter table empresas add column if not exists tianguis_digital_pdf text;
+alter table empresas add column if not exists tianguis_digital_pdf_nombre text;
+alter table empresas add column if not exists tianguis_digital_fecha date;
+alter table empresas add column if not exists repse_numero text;
+alter table empresas add column if not exists repse_pdf text;
+alter table empresas add column if not exists repse_pdf_nombre text;
+alter table empresas add column if not exists repse_fecha date;
+alter table empresas add column if not exists constancia_situacion_fiscal_numero text;
+alter table empresas add column if not exists constancia_situacion_fiscal_pdf text;
+alter table empresas add column if not exists constancia_situacion_fiscal_pdf_nombre text;
+alter table empresas add column if not exists constancia_situacion_fiscal_fecha date;
+alter table empresas add column if not exists opinion_sat_numero text;
+alter table empresas add column if not exists opinion_sat_pdf text;
+alter table empresas add column if not exists opinion_sat_pdf_nombre text;
+alter table empresas add column if not exists opinion_sat_fecha date;
+alter table empresas add column if not exists opinion_imss_numero text;
+alter table empresas add column if not exists opinion_imss_pdf text;
+alter table empresas add column if not exists opinion_imss_pdf_nombre text;
+alter table empresas add column if not exists opinion_imss_fecha date;
+alter table empresas add column if not exists opinion_infonavit_numero text;
+alter table empresas add column if not exists opinion_infonavit_pdf text;
+alter table empresas add column if not exists opinion_infonavit_pdf_nombre text;
+alter table empresas add column if not exists opinion_infonavit_fecha date;
+alter table empresas add column if not exists caratula_banco_numero text;
+alter table empresas add column if not exists caratula_banco_pdf text;
+alter table empresas add column if not exists caratula_banco_pdf_nombre text;
+alter table empresas add column if not exists caratula_banco_fecha date;
+alter table empresas add column if not exists comprobante_domicilio_numero text;
+alter table empresas add column if not exists comprobante_domicilio_pdf text;
+alter table empresas add column if not exists comprobante_domicilio_pdf_nombre text;
+alter table empresas add column if not exists comprobante_domicilio_fecha date;
 
 create table if not exists dependencias (
   id uuid primary key default gen_random_uuid(),
@@ -85,12 +150,15 @@ create table if not exists fianzas_garantias (
   numero_poliza text,
   fecha_emision date,
   fecha_vencimiento date,
-  estatus text default 'Vigente',
+  estatus text default 'Pendiente',
   archivo_pdf text,
+  archivo_pdf_nombre text,
   observaciones text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table fianzas_garantias add column if not exists archivo_pdf_nombre text;
 
 create table if not exists liberaciones (
   id uuid primary key default gen_random_uuid(),
@@ -103,11 +171,16 @@ create table if not exists liberaciones (
   fecha_liberacion date,
   estatus text default 'Pendiente',
   oficio_solicitud text,
+  oficio_solicitud_nombre text,
   acuse text,
+  acuse_nombre text,
   observaciones text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table liberaciones add column if not exists oficio_solicitud_nombre text;
+alter table liberaciones add column if not exists acuse_nombre text;
 
 create table if not exists pendientes (
   id uuid primary key default gen_random_uuid(),
@@ -131,6 +204,21 @@ create table if not exists archivos (
   licitacion_relacionada text,
   dependencia text,
   fecha_carga date default current_date,
+  observaciones text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists checklists (
+  id uuid primary key default gen_random_uuid(),
+  nombre text not null,
+  licitacion_relacionada text,
+  empresa_participante text,
+  texto_base text,
+  ck_la text,
+  ck_t text,
+  ck_e text,
+  estatus text default 'Pendiente',
   observaciones text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -164,6 +252,9 @@ create trigger set_pendientes_updated_at before update on pendientes for each ro
 
 drop trigger if exists set_archivos_updated_at on archivos;
 create trigger set_archivos_updated_at before update on archivos for each row execute function set_updated_at();
+
+drop trigger if exists set_checklists_updated_at on checklists;
+create trigger set_checklists_updated_at before update on checklists for each row execute function set_updated_at();
 
 alter table dependencias enable row level security;
 alter table licitaciones enable row level security;

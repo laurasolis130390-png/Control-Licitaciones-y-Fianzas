@@ -4,10 +4,20 @@ const modules = [
   ["Licitaciones", "icon-file"],
   ["Fianzas y Garantias", "icon-shield"],
   ["Liberaciones", "icon-stamp"],
-  ["Pendientes", "icon-file"],
-  ["Archivos", "icon-folder"],
+  ["Generador de Checklist", "icon-chart"],
   ["Reportes", "icon-chart"],
   ["Configuracion", "icon-settings"],
+];
+
+const empresaDocumentos = [
+  ["tianguis_digital", "Tianguis Digital"],
+  ["repse", "REPSE"],
+  ["constancia_situacion_fiscal", "Constancia de situacion fiscal"],
+  ["opinion_sat", "Opinion de cumplimiento SAT"],
+  ["opinion_imss", "Opinion de cumplimiento IMSS"],
+  ["opinion_infonavit", "Opinion de cumplimiento INFONAVIT"],
+  ["caratula_banco", "Caratula de banco"],
+  ["comprobante_domicilio", "Comprobante de domicilio"],
 ];
 
 const moduleDefinitions = {
@@ -44,6 +54,11 @@ const moduleDefinitions = {
       ["fecha_facultades", "Fecha de facultades", "date"],
       ["notario_facultades", "Notario de facultades", "text"],
       ["reformas", "Reformas o modificaciones", "textarea"],
+      ...empresaDocumentos.flatMap(([key, label]) => [
+        [`${key}_numero`, `${label} - numero o folio`, "text"],
+        [`${key}_pdf`, `${label} - PDF`, "file"],
+        [`${key}_fecha`, `${label} - fecha de actualizacion`, "date"],
+      ]),
       ["observaciones", "Observaciones", "textarea"],
     ],
   },
@@ -66,7 +81,7 @@ const moduleDefinitions = {
       ["hora_presentacion", "Hora de presentacion", "time"],
       ["fecha_fallo", "Fecha de fallo", "date"],
       ["hora_fallo", "Hora de fallo", "time"],
-      ["estatus", "Estatus", "select", false, ["En elaboracion", "Presentada", "Adjudicada", "No adjudicada", "Cancelado"]],
+      ["estatus", "Estatus", "select", false, ["Pendiente", "En elaboracion", "Presentada", "Adjudicada", "No adjudicada", "Trabajado", "Cancelado"]],
       ["responsable", "Responsable", "text"],
       ["observaciones", "Observaciones", "textarea"],
     ],
@@ -80,13 +95,13 @@ const moduleDefinitions = {
       ["tipo", "Tipo de fianza o garantia", "text", true],
       ["licitacion_relacionada", "Licitacion relacionada", "relation", true, "licitaciones"],
       ["dependencia", "Dependencia", "text"],
-      ["monto", "Monto", "number"],
+      ["monto", "Monto", "money"],
       ["afianzadora", "Afianzadora", "text"],
       ["numero_poliza", "Numero de poliza", "text"],
       ["fecha_emision", "Fecha de emision", "date"],
       ["fecha_vencimiento", "Fecha de vencimiento", "date"],
-      ["estatus", "Estatus", "select", false, ["Vigente", "Proximo a vencer", "Vencido", "Liberado", "Cancelado"]],
-      ["archivo_pdf", "Archivo PDF", "text"],
+      ["estatus", "Estatus", "select", false, ["Pendiente", "En tramite", "Vigente", "Proximo a vencer", "Vencido", "Liberado", "Trabajado", "Cancelado"]],
+      ["archivo_pdf", "Archivo PDF", "file"],
       ["observaciones", "Observaciones", "textarea"],
     ],
   },
@@ -103,9 +118,9 @@ const moduleDefinitions = {
       ["fecha_solicitud", "Fecha de solicitud", "date"],
       ["fecha_limite", "Fecha limite", "date"],
       ["fecha_liberacion", "Fecha de liberacion", "date"],
-      ["estatus", "Estatus", "select", false, ["Pendiente", "En tramite", "Entregado", "Observado", "Liberado", "Cancelado"]],
-      ["oficio_solicitud", "Oficio de solicitud", "text"],
-      ["acuse", "Acuse", "text"],
+      ["estatus", "Estatus", "select", false, ["Pendiente", "En tramite", "Entregado", "Observado", "Liberado", "Trabajado", "Cancelado"]],
+      ["oficio_solicitud", "Oficio de solicitud PDF", "file"],
+      ["acuse", "Acuse PDF", "file"],
       ["observaciones", "Observaciones", "textarea"],
     ],
   },
@@ -155,6 +170,23 @@ const moduleDefinitions = {
       ["observaciones", "Observaciones", "textarea"],
     ],
   },
+  "Generador de Checklist": {
+    table: "checklists",
+    title: "Generador de Checklist",
+    subtitle: "Genera y guarda checklist legal-administrativo, tecnico y economico por licitacion.",
+    primary: "nombre",
+    fields: [
+      ["nombre", "Nombre del checklist", "text", true],
+      ["licitacion_relacionada", "Licitacion relacionada", "relation", true, "licitaciones"],
+      ["empresa_participante", "Empresa", "relation", false, "empresas"],
+      ["texto_base", "Pega aqui el texto de requisitos", "textarea"],
+      ["ck_la", "CK LA - Legal y Administrativa", "textarea"],
+      ["ck_t", "CK T - Propuesta Tecnica", "textarea"],
+      ["ck_e", "CK E - Propuesta Economica", "textarea"],
+      ["estatus", "Estatus", "select", false, ["Pendiente", "En tramite", "Trabajado", "Cancelado"]],
+      ["observaciones", "Observaciones", "textarea"],
+    ],
+  },
 };
 
 delete moduleDefinitions.Dependencias;
@@ -170,6 +202,7 @@ const statusColors = {
   "Proximo a vencer": "#ff8516",
   Vencido: "#ff4747",
   Liberado: "#3d8bff",
+  Trabajado: "#8a94a6",
   Cancelado: "#a9b5c8",
   "En elaboracion": "#3d8bff",
   Presentada: "#2fb6b1",
@@ -295,6 +328,10 @@ async function mergeLocalIntoSupabase(localStore, remoteStore) {
 function prepareRecord(table, record) {
   const cleanRecord = Object.fromEntries(Object.entries(record).filter(([, value]) => value !== ""));
 
+  if (table === "fianzas_garantias" && cleanRecord.monto) {
+    cleanRecord.monto = Number(String(cleanRecord.monto).replace(/[^0-9.-]/g, "")).toFixed(2);
+  }
+
   if (table === "liberaciones" && cleanRecord.fianza_relacionada) {
     const fianza = store.fianzas_garantias.find((item) => item.id === cleanRecord.fianza_relacionada || item.tipo === cleanRecord.fianza_relacionada);
     if (fianza) {
@@ -306,6 +343,33 @@ function prepareRecord(table, record) {
   }
 
   return cleanRecord;
+}
+
+async function collectFormRecord(formElement) {
+  const form = new FormData(formElement);
+  const record = {};
+
+  for (const [name, value] of form.entries()) {
+    if (value instanceof File) {
+      if (value.name && value.size > 0) {
+        record[name] = await fileToDataUrl(value);
+        record[`${name}_nombre`] = value.name;
+      }
+      continue;
+    }
+    record[name] = value;
+  }
+
+  return record;
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 async function saveRecord(table, record) {
@@ -450,7 +514,7 @@ function renderDashboard() {
     <section class="content-grid">
       <div class="left-stack">
         <article class="panel urgent-panel">
-          <div class="panel-header"><h2>${icon("icon-flag")}Pendientes urgentes</h2></div>
+          <div class="panel-header"><h2>${icon("icon-flag")}Estatus pendientes</h2></div>
           <div class="table-wrap">
             <table>
               <thead>
@@ -466,7 +530,7 @@ function renderDashboard() {
               <tbody id="urgentRows"></tbody>
             </table>
           </div>
-          <a class="panel-link" href="#" data-go="Pendientes">Ver todos los pendientes ${icon("icon-chevron")}</a>
+          <a class="panel-link" href="#" data-go="Reportes">Ver reporte ${icon("icon-chevron")}</a>
         </article>
         <section class="chart-grid">
           <article class="panel chart-panel">
@@ -490,7 +554,7 @@ function renderDashboard() {
       <aside class="right-stack">
         <article class="panel calendar-panel">
           <div class="panel-header split">
-            <h2>${icon("icon-calendar")}Calendario de vencimientos</h2>
+            <h2>${icon("icon-calendar")}Calendario de Eventos</h2>
             <div class="calendar-arrows">
               <button class="icon-button compact" type="button" aria-label="Mes anterior">${icon("icon-chevron")}</button>
               <button class="icon-button compact" type="button" aria-label="Mes siguiente">${icon("icon-chevron")}</button>
@@ -502,29 +566,32 @@ function renderDashboard() {
             <span><i class="dot red"></i>Vencidos</span>
             <span><i class="dot orange"></i>Proximos a vencer</span>
             <span><i class="dot green"></i>Pendientes</span>
+            <span><i class="dot grey"></i>Trabajado</span>
           </div>
         </article>
         <article class="panel due-panel">
           <h2>${icon("icon-clock")}Proximos a vencer</h2>
           <div id="dueList"></div>
-          <a class="panel-link" href="#" data-go="Pendientes">Ver todos ${icon("icon-chevron")}</a>
-        </article>
-        <article class="panel docs-panel">
-          <h2>${icon("icon-file")}Ultimos documentos agregados</h2>
-          <div id="documentList"></div>
-          <a class="panel-link" href="#" data-go="Archivos">Ver todos los archivos ${icon("icon-chevron")}</a>
+          <a class="panel-link" href="#" data-go="Reportes">Ver todos ${icon("icon-chevron")}</a>
         </article>
       </aside>
     </section>
+    <div class="event-modal" id="eventModal" hidden>
+      <div class="event-modal-card">
+        <button class="icon-button compact" type="button" id="closeEventModal" aria-label="Cerrar">×</button>
+        <h2 id="eventModalTitle"></h2>
+        <p id="eventModalBody"></p>
+      </div>
+    </div>
   `;
 
   renderKpis();
   renderUrgentRows();
   renderCalendar();
   renderDueList();
-  renderDocuments();
   renderLegends();
   bindDashboardLinks();
+  bindCalendarEvents();
 }
 
 function renderKpis() {
@@ -579,13 +646,14 @@ function renderCalendar() {
   const weekDays = ["D", "L", "M", "M", "J", "V", "S"];
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const marks = getDueRecords().reduce((acc, item) => {
+  const events = getDueRecords();
+  const marks = events.reduce((acc, item) => {
     const value = item.fecha_vencimiento || item.fecha_limite;
     if (!value) return acc;
     const date = new Date(`${value}T00:00:00`);
     if (date.getFullYear() !== year || date.getMonth() !== month) return acc;
     const left = daysUntil(value);
-    acc[date.getDate()] = left < 0 ? "#ff4747" : left <= 30 ? "#ff8516" : "#4fc768";
+    acc[date.getDate()] = getEventColor(item, left);
     return acc;
   }, {});
 
@@ -593,7 +661,13 @@ function renderCalendar() {
   const days = Array.from({ length: daysInMonth }, (_, index) => {
     const day = index + 1;
     const marked = marks[day];
-    return `<button class="${marked ? "marked" : ""}" style="${marked ? `--mark:${marked}` : ""}">${day}</button>`;
+    const dayEvents = events.filter((item) => {
+      const value = item.fecha_vencimiento || item.fecha_limite;
+      if (!value) return false;
+      const date = new Date(`${value}T00:00:00`);
+      return date.getFullYear() === year && date.getMonth() === month && date.getDate() === day;
+    });
+    return `<button class="${marked ? "marked" : ""}" data-day="${day}" style="${marked ? `--mark:${marked}` : ""}">${day}${dayEvents.length ? `<small>${dayEvents.length}</small>` : ""}</button>`;
   });
 
   grid.innerHTML = [...weekDays.map((day) => `<span>${day}</span>`), ...blanks, ...days].join("");
@@ -602,10 +676,35 @@ function renderCalendar() {
 function getDueRecords() {
   return [
     ...store.licitaciones.flatMap((item) => getBidEvents(item)),
+    ...store.empresas.flatMap((item) => getCompanyDocumentEvents(item)),
     ...store.fianzas_garantias.map((item) => ({ ...item, titulo: item.tipo, fecha_limite: item.fecha_vencimiento })),
     ...store.liberaciones.map((item) => ({ ...item, titulo: item.tipo })),
     ...store.pendientes,
   ];
+}
+
+function getCompanyDocumentEvents(item) {
+  return empresaDocumentos
+    .filter(([key]) => item[`${key}_fecha`])
+    .map(([key, label]) => {
+      const next = new Date(`${item[`${key}_fecha`]}T00:00:00`);
+      next.setDate(next.getDate() + 15);
+      return {
+        id: `${item.id}-${key}`,
+        titulo: `Actualizar ${label}: ${item.nombre}`,
+        licitacion_relacionada: item.nombre,
+        fecha_limite: next.toISOString().slice(0, 10),
+        estatus: "Proximo a vencer",
+        event_type: "empresa_documento",
+      };
+    });
+}
+
+function getEventColor(item, left = daysUntil(item.fecha_vencimiento || item.fecha_limite)) {
+  if (item.estatus === "Trabajado" || item.estatus === "Liberado" || item.estatus === "Entregado") return "#8a94a6";
+  if (left < 0) return "#ff4747";
+  if (left <= 30) return "#ff8516";
+  return "#4fc768";
 }
 
 function getBidEvents(item) {
@@ -711,6 +810,37 @@ function bindDashboardLinks() {
   });
 }
 
+function bindCalendarEvents() {
+  const modal = document.querySelector("#eventModal");
+  const close = document.querySelector("#closeEventModal");
+  const title = document.querySelector("#eventModalTitle");
+  const body = document.querySelector("#eventModalBody");
+  const events = getDueRecords();
+  const today = new Date();
+
+  document.querySelectorAll("#calendarGrid [data-day]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const day = Number(button.dataset.day);
+      const dayEvents = events.filter((item) => {
+        const value = item.fecha_vencimiento || item.fecha_limite;
+        if (!value) return false;
+        const date = new Date(`${value}T00:00:00`);
+        return date.getFullYear() === today.getFullYear() && date.getMonth() === today.getMonth() && date.getDate() === day;
+      });
+      if (!dayEvents.length) return;
+      title.textContent = `Eventos del ${day}`;
+      body.innerHTML = dayEvents
+        .map((item) => `<strong>${escapeHtml(item.titulo || "Evento")}</strong><span>${escapeHtml(item.hora_limite ? `${item.hora_limite} · ` : "")}${escapeHtml(item.licitacion_relacionada || item.dependencia || item.estatus || "")}</span>`)
+        .join("");
+      modal.hidden = false;
+    });
+  });
+
+  close?.addEventListener("click", () => {
+    modal.hidden = true;
+  });
+}
+
 function renderModule(moduleName) {
   const definition = moduleDefinitions[moduleName];
   const rows = store[definition.table] || [];
@@ -744,8 +874,7 @@ function renderModule(moduleName) {
 
   document.querySelector("#recordForm").addEventListener("submit", async (event) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const record = Object.fromEntries(form.entries());
+    const record = await collectFormRecord(event.currentTarget);
     if (editingRecord) {
       await updateRecord(definition.table, editingRecord.id, record);
       editingState = null;
@@ -777,6 +906,10 @@ function renderModule(moduleName) {
       renderModule(moduleName);
     });
   });
+
+  if (moduleName === "Generador de Checklist") {
+    bindChecklistGenerator();
+  }
 }
 
 function renderField([name, label, type, required, options], record = {}, definition = {}) {
@@ -784,6 +917,12 @@ function renderField([name, label, type, required, options], record = {}, defini
 
   if (type === "textarea") {
     return `<label class="field full"><span>${label}</span><textarea name="${name}" rows="3">${escapeHtml(value)}</textarea></label>`;
+  }
+
+  if (type === "file") {
+    const fileName = record?.[`${name}_nombre`];
+    const existing = value ? `<a class="file-link" href="${escapeHtml(value)}" target="_blank" rel="noopener">${escapeHtml(fileName || "Ver PDF cargado")}</a>` : "";
+    return `<label class="field"><span>${label}</span><input name="${name}" type="file" accept="application/pdf" />${existing}</label>`;
   }
 
   if (type === "select" || type === "relation") {
@@ -799,7 +938,47 @@ function renderField([name, label, type, required, options], record = {}, defini
     `;
   }
 
+  if (type === "money") {
+    return `<label class="field"><span>${label}</span><input name="${name}" type="number" min="0" step="0.01" value="${escapeHtml(value)}" ${required ? "required" : ""} /></label>`;
+  }
+
   return `<label class="field"><span>${label}</span><input name="${name}" type="${type}" value="${escapeHtml(value)}" ${required ? "required" : ""} /></label>`;
+}
+
+function bindChecklistGenerator() {
+  const textArea = document.querySelector('[name="texto_base"]');
+  if (!textArea) return;
+
+  const generate = () => {
+    const generated = generateChecklistSections(textArea.value);
+    for (const [name, value] of Object.entries(generated)) {
+      const target = document.querySelector(`[name="${name}"]`);
+      if (target && !target.value.trim()) target.value = value;
+    }
+  };
+
+  textArea.addEventListener("blur", generate);
+}
+
+function generateChecklistSections(text) {
+  const lines = text
+    .split(/\r?\n|;|•|-/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const buckets = { ck_la: [], ck_t: [], ck_e: [] };
+  const legalWords = /acta|poder|rfc|sat|imss|infonavit|identificacion|domicilio|repse|legal|administrativa|opinion|constancia|banco/i;
+  const technicalWords = /tecnica|catalogo|ficha|equipo|experiencia|programa|personal|procedimiento|memoria|calidad|seguridad/i;
+  const economicWords = /economica|precio|presupuesto|cotizacion|monto|propuesta economica|analisis|costos|unitario|financ/i;
+
+  for (const line of lines) {
+    if (economicWords.test(line)) buckets.ck_e.push(line);
+    else if (technicalWords.test(line)) buckets.ck_t.push(line);
+    else if (legalWords.test(line)) buckets.ck_la.push(line);
+    else buckets.ck_la.push(line);
+  }
+
+  return Object.fromEntries(Object.entries(buckets).map(([key, items]) => [key, items.map((item) => `☐ ${item}`).join("\n")]));
 }
 
 function getRelationOptions(table, record, definition) {
@@ -858,7 +1037,16 @@ function getRecordMeta(record, definition) {
     return [record.rfc, record.personalidad_juridica, record.correo].filter(Boolean).join(" · ") || "Sin datos fiscales";
   }
 
+  if (definition.table === "fianzas_garantias") {
+    return [record.licitacion_relacionada, record.monto ? formatCurrency(record.monto) : "", record.fecha_vencimiento ? `Vence ${formatDate(record.fecha_vencimiento)}` : ""].filter(Boolean).join(" · ") || "Sin relacion";
+  }
+
   return record.licitacion_relacionada || record.dependencia || record.tipo_documento || record.numero || "Sin relacion";
+}
+
+function formatCurrency(value) {
+  const amount = Number(value || 0);
+  return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(amount);
 }
 
 function escapeHtml(value) {
