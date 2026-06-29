@@ -922,8 +922,22 @@ td:nth-child(4) {
   cursor: pointer;
 }
 
+.text-button.neutral {
+  color: #61adff;
+}
+
 .text-button:hover {
   color: #ffaaaa;
+}
+
+.text-button.neutral:hover {
+  color: #9dccff;
+}
+
+.record-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .empty-state {

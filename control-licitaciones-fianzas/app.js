@@ -4,7 +4,6 @@ const modules = [
   ["Fianzas y Garantias", "icon-shield"],
   ["Liberaciones", "icon-stamp"],
   ["Pendientes", "icon-file"],
-  ["Dependencias", "icon-building"],
   ["Archivos", "icon-folder"],
   ["Reportes", "icon-chart"],
   ["Configuracion", "icon-settings"],
@@ -42,7 +41,7 @@ const moduleDefinitions = {
     primary: "tipo",
     fields: [
       ["tipo", "Tipo de fianza o garantia", "text", true],
-      ["licitacion_relacionada", "Licitacion relacionada", "text"],
+      ["licitacion_relacionada", "Licitacion relacionada", "relation", true, "licitaciones"],
       ["dependencia", "Dependencia", "text"],
       ["monto", "Monto", "number"],
       ["afianzadora", "Afianzadora", "text"],
@@ -60,8 +59,8 @@ const moduleDefinitions = {
     subtitle: "Da seguimiento a solicitudes, acuses y liberaciones.",
     primary: "tipo",
     fields: [
-      ["tipo", "Tipo de liberacion", "text", true],
-      ["fianza_relacionada", "Fianza relacionada", "text"],
+      ["fianza_relacionada", "Fianza a liberar", "relation", true, "fianzas_garantias"],
+      ["tipo", "Tipo de liberacion", "text"],
       ["licitacion_relacionada", "Licitacion relacionada", "text"],
       ["dependencia", "Dependencia", "text"],
       ["fecha_solicitud", "Fecha de solicitud", "date"],
@@ -121,6 +120,8 @@ const moduleDefinitions = {
   },
 };
 
+delete moduleDefinitions.Dependencias;
+
 const tableNames = Object.values(moduleDefinitions).map((item) => item.table);
 const localKey = "controlLicitacionesFianzasData";
 const statusColors = {
@@ -142,6 +143,7 @@ const statusColors = {
 let activeModule = "Inicio";
 let store = createEmptyStore();
 let syncMode = "local";
+let editingState = null;
 
 function createEmptyStore() {
   return Object.fromEntries(tableNames.map((name) => [name, []]));
@@ -153,8 +155,9 @@ function icon(id) {
 
 function getSupabaseConfig() {
   const config = window.SUPABASE_CONFIG || {};
+  const cleanUrl = (config.url || "").replace(/\/$/, "").replace(/\/rest\/v1$/, "");
   return {
-    url: (config.url || "").replace(/\/$/, ""),
+    url: cleanUrl,
     anonKey: config.anonKey || "",
   };
 }
@@ -166,6 +169,8 @@ function supabaseReady() {
 
 async function supabaseRequest(table, options = {}) {
   const config = getSupabaseConfig();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
   const response = await fetch(`${config.url}/rest/v1/${table}${options.query || ""}`, {
     method: options.method || "GET",
     headers: {
@@ -175,7 +180,9 @@ async function supabaseRequest(table, options = {}) {
       Prefer: options.prefer || "return=representation",
     },
     body: options.body ? JSON.stringify(options.body) : undefined,
+    signal: controller.signal,
   });
+  clearTimeout(timeout);
 
   if (!response.ok) {
     throw new Error(await response.text());
@@ -216,8 +223,24 @@ async function loadStore() {
   }
 }
 
-async function saveRecord(table, record) {
+function prepareRecord(table, record) {
   const cleanRecord = Object.fromEntries(Object.entries(record).filter(([, value]) => value !== ""));
+
+  if (table === "liberaciones" && cleanRecord.fianza_relacionada) {
+    const fianza = store.fianzas_garantias.find((item) => item.id === cleanRecord.fianza_relacionada || item.tipo === cleanRecord.fianza_relacionada);
+    if (fianza) {
+      cleanRecord.fianza_relacionada = fianza.tipo;
+      cleanRecord.licitacion_relacionada = cleanRecord.licitacion_relacionada || fianza.licitacion_relacionada || "";
+      cleanRecord.dependencia = cleanRecord.dependencia || fianza.dependencia || "";
+      cleanRecord.tipo = cleanRecord.tipo || `Liberacion de ${fianza.tipo}`;
+    }
+  }
+
+  return cleanRecord;
+}
+
+async function saveRecord(table, record) {
+  const cleanRecord = prepareRecord(table, record);
 
   if (supabaseReady()) {
     try {
@@ -233,6 +256,26 @@ async function saveRecord(table, record) {
   }
 
   store[table] = [{ ...cleanRecord, id: crypto.randomUUID(), created_at: new Date().toISOString() }, ...store[table]];
+  saveLocalStore();
+}
+
+async function updateRecord(table, id, record) {
+  const cleanRecord = prepareRecord(table, record);
+
+  if (supabaseReady()) {
+    try {
+      const [saved] = await supabaseRequest(table, { method: "PATCH", query: `?id=eq.${id}`, body: cleanRecord });
+      store[table] = store[table].map((item) => (item.id === id ? saved : item));
+      saveLocalStore();
+      syncMode = "supabase";
+      return;
+    } catch (error) {
+      console.error(error);
+      syncMode = "local";
+    }
+  }
+
+  store[table] = store[table].map((item) => (item.id === id ? { ...item, ...cleanRecord, updated_at: new Date().toISOString() } : item));
   saveLocalStore();
 }
 
@@ -309,7 +352,7 @@ function getKpis() {
   const licitacionesActivas = store.licitaciones.filter((item) => !["Cancelado", "No adjudicada"].includes(item.estatus)).length;
   const fianzasVigentes = store.fianzas_garantias.filter((item) => item.estatus === "Vigente").length;
   const liberacionesPendientes = store.liberaciones.filter((item) => ["Pendiente", "En tramite", "Observado"].includes(item.estatus)).length;
-  const dueSources = [...store.fianzas_garantias, ...store.liberaciones, ...store.pendientes];
+  const dueSources = getDueRecords();
   const proximos = dueSources.filter((item) => {
     const left = daysUntil(item.fecha_vencimiento || item.fecha_limite);
     return left !== null && left >= 0 && left <= 30;
@@ -489,10 +532,31 @@ function renderCalendar() {
 
 function getDueRecords() {
   return [
+    ...store.licitaciones.flatMap((item) => getBidEvents(item)),
     ...store.fianzas_garantias.map((item) => ({ ...item, titulo: item.tipo, fecha_limite: item.fecha_vencimiento })),
     ...store.liberaciones.map((item) => ({ ...item, titulo: item.tipo })),
     ...store.pendientes,
   ];
+}
+
+function getBidEvents(item) {
+  return [
+    ["Visita", item.fecha_visita, item.hora_visita],
+    ["Junta de aclaraciones", item.fecha_junta_aclaraciones, item.hora_junta_aclaraciones],
+    ["Presentacion", item.fecha_presentacion, item.hora_presentacion],
+    ["Fallo", item.fecha_fallo, item.hora_fallo],
+  ]
+    .filter(([, date]) => date)
+    .map(([label, date, time]) => ({
+      id: `${item.id}-${label}`,
+      titulo: `${label}: ${item.nombre}`,
+      licitacion_relacionada: item.nombre,
+      dependencia: item.dependencia,
+      fecha_limite: date,
+      hora_limite: time,
+      estatus: item.estatus,
+      event_type: "licitacion",
+    }));
 }
 
 function renderDueList() {
@@ -514,7 +578,7 @@ function renderDueList() {
               <i></i>
               <div>
                 <strong>${item.titulo || item.tipo || "Vencimiento"}</strong>
-                <span>${item.licitacion_relacionada || item.dependencia || "Sin relacion"}</span>
+                <span>${item.hora_limite ? `${item.hora_limite} · ` : ""}${item.licitacion_relacionada || item.dependencia || "Sin relacion"}</span>
               </div>
               <div class="date-box">${date.getDate()}<small>${date.toLocaleDateString("es-MX", { month: "short" }).replace(".", "").toUpperCase()}</small></div>
             </div>
@@ -581,16 +645,20 @@ function bindDashboardLinks() {
 function renderModule(moduleName) {
   const definition = moduleDefinitions[moduleName];
   const rows = store[definition.table] || [];
+  const editingRecord = editingState?.module === moduleName ? rows.find((item) => item.id === editingState.id) : null;
   document.querySelector("h1").textContent = definition.title;
   document.querySelector(".topbar p").textContent = definition.subtitle;
 
   document.querySelector("#viewRoot").innerHTML = `
     <section class="module-grid">
       <article class="panel form-panel">
-        <div class="panel-header"><h2>Nuevo registro</h2></div>
+        <div class="panel-header split">
+          <h2>${editingRecord ? "Editar registro" : "Nuevo registro"}</h2>
+          ${editingRecord ? `<button class="text-button neutral" type="button" id="cancelEdit">Cancelar</button>` : ""}
+        </div>
         <form id="recordForm" class="record-form">
-          ${definition.fields.map(renderField).join("")}
-          <button class="primary-button" type="submit">Guardar registro</button>
+          ${definition.fields.map((field) => renderField(field, editingRecord, definition)).join("")}
+          <button class="primary-button" type="submit">${editingRecord ? "Actualizar registro" : "Guardar registro"}</button>
         </form>
       </article>
       <article class="panel records-panel">
@@ -609,35 +677,82 @@ function renderModule(moduleName) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const record = Object.fromEntries(form.entries());
-    await saveRecord(definition.table, record);
+    if (editingRecord) {
+      await updateRecord(definition.table, editingRecord.id, record);
+      editingState = null;
+    } else {
+      await saveRecord(definition.table, record);
+    }
     renderModule(moduleName);
+  });
+
+  document.querySelector("#cancelEdit")?.addEventListener("click", () => {
+    editingState = null;
+    renderModule(moduleName);
+  });
+
+  document.querySelectorAll("[data-edit]").forEach((button) => {
+    button.addEventListener("click", () => {
+      editingState = { module: moduleName, id: button.dataset.edit };
+      renderModule(moduleName);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
   });
 
   document.querySelectorAll("[data-delete]").forEach((button) => {
     button.addEventListener("click", async () => {
       await deleteRecord(definition.table, button.dataset.delete);
+      if (editingState?.id === button.dataset.delete) {
+        editingState = null;
+      }
       renderModule(moduleName);
     });
   });
 }
 
-function renderField([name, label, type, required, options]) {
+function renderField([name, label, type, required, options], record = {}, definition = {}) {
+  const value = record?.[name] || "";
+
   if (type === "textarea") {
-    return `<label class="field full"><span>${label}</span><textarea name="${name}" rows="3"></textarea></label>`;
+    return `<label class="field full"><span>${label}</span><textarea name="${name}" rows="3">${escapeHtml(value)}</textarea></label>`;
   }
 
-  if (type === "select") {
+  if (type === "select" || type === "relation") {
+    const relationOptions = type === "relation" ? getRelationOptions(options, record, definition) : options.map((option) => [option, option]);
     return `
       <label class="field">
         <span>${label}</span>
         <select name="${name}" ${required ? "required" : ""}>
-          ${options.map((option) => `<option value="${option}">${option}</option>`).join("")}
+          ${type === "relation" ? `<option value="">Selecciona una opcion</option>` : ""}
+          ${relationOptions.map(([optionValue, optionLabel]) => `<option value="${escapeHtml(optionValue)}" ${optionValue === value ? "selected" : ""}>${escapeHtml(optionLabel)}</option>`).join("")}
         </select>
       </label>
     `;
   }
 
-  return `<label class="field"><span>${label}</span><input name="${name}" type="${type}" ${required ? "required" : ""} /></label>`;
+  return `<label class="field"><span>${label}</span><input name="${name}" type="${type}" value="${escapeHtml(value)}" ${required ? "required" : ""} /></label>`;
+}
+
+function getRelationOptions(table, record, definition) {
+  if (table === "licitaciones") {
+    const options = store.licitaciones.map((item) => [item.nombre, `${item.nombre}${item.numero ? ` · ${item.numero}` : ""}`]);
+    if (record?.licitacion_relacionada && !options.some(([value]) => value === record.licitacion_relacionada)) {
+      options.unshift([record.licitacion_relacionada, record.licitacion_relacionada]);
+    }
+    return options;
+  }
+
+  if (table === "fianzas_garantias") {
+    const options = store.fianzas_garantias
+      .filter((item) => !["Liberado", "Cancelado"].includes(item.estatus))
+      .map((item) => [item.id, `${item.tipo}${item.licitacion_relacionada ? ` · ${item.licitacion_relacionada}` : ""}`]);
+    if (record?.fianza_relacionada && !options.some(([, label]) => label.startsWith(record.fianza_relacionada))) {
+      options.unshift([record.fianza_relacionada, record.fianza_relacionada]);
+    }
+    return options;
+  }
+
+  return [];
 }
 
 function renderRecord(record, definition) {
@@ -653,9 +768,21 @@ function renderRecord(record, definition) {
         ${schedule}
       </div>
       <span class="status" style="--status-color:${statusColors[status] || "#a9b5c8"}">${status}</span>
-      <button class="text-button" type="button" data-delete="${record.id}">Eliminar</button>
+      <div class="record-actions">
+        <button class="text-button neutral" type="button" data-edit="${record.id}">Editar</button>
+        <button class="text-button" type="button" data-delete="${record.id}">Eliminar</button>
+      </div>
     </div>
   `;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 function renderBidSchedule(record) {
