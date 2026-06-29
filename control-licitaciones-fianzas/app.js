@@ -22,9 +22,14 @@ const moduleDefinitions = {
       ["numero", "Numero de licitacion", "text"],
       ["empresa_participante", "Empresa participante", "text"],
       ["fecha_publicacion", "Fecha de publicacion", "date"],
+      ["fecha_visita", "Fecha de visita", "date"],
+      ["hora_visita", "Hora de visita", "time"],
       ["fecha_junta_aclaraciones", "Fecha de junta de aclaraciones", "date"],
+      ["hora_junta_aclaraciones", "Hora de junta de aclaraciones", "time"],
       ["fecha_presentacion", "Fecha de presentacion", "date"],
+      ["hora_presentacion", "Hora de presentacion", "time"],
       ["fecha_fallo", "Fecha de fallo", "date"],
+      ["hora_fallo", "Hora de fallo", "time"],
       ["estatus", "Estatus", "select", false, ["En elaboracion", "Presentada", "Adjudicada", "No adjudicada", "Cancelado"]],
       ["responsable", "Responsable", "text"],
       ["observaciones", "Observaciones", "textarea"],
@@ -639,14 +644,44 @@ function renderRecord(record, definition) {
   const title = record[definition.primary] || "Sin titulo";
   const meta = record.licitacion_relacionada || record.dependencia || record.tipo_documento || record.numero || "Sin relacion";
   const status = record.estatus || record.prioridad || record.tipo_documento || "Registrado";
+  const schedule = definition.table === "licitaciones" ? renderBidSchedule(record) : "";
   return `
     <div class="record-card">
       <div>
         <strong>${title}</strong>
         <span>${meta}</span>
+        ${schedule}
       </div>
       <span class="status" style="--status-color:${statusColors[status] || "#a9b5c8"}">${status}</span>
       <button class="text-button" type="button" data-delete="${record.id}">Eliminar</button>
+    </div>
+  `;
+}
+
+function renderBidSchedule(record) {
+  const items = [
+    ["Visita", record.fecha_visita, record.hora_visita],
+    ["Junta", record.fecha_junta_aclaraciones, record.hora_junta_aclaraciones],
+    ["Presentacion", record.fecha_presentacion, record.hora_presentacion],
+    ["Fallo", record.fecha_fallo, record.hora_fallo],
+  ].filter(([, date, time]) => date || time);
+
+  if (!items.length) {
+    return "";
+  }
+
+  return `
+    <div class="schedule-strip">
+      ${items
+        .map(
+          ([label, date, time]) => `
+            <span>
+              <b>${label}</b>
+              ${date ? formatDate(date) : "Sin fecha"}${time ? ` · ${time}` : ""}
+            </span>
+          `,
+        )
+        .join("")}
     </div>
   `;
 }

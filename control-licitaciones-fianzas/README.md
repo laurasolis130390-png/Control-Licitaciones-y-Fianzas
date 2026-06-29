@@ -26,6 +26,13 @@ window.SUPABASE_CONFIG = {
 };
 ```
 
+Si ya habias creado las tablas antes de agregar horarios, ejecuta de nuevo `supabase-schema.sql`. El archivo ya incluye instrucciones `alter table` para agregar a `licitaciones`:
+
+- Fecha y hora de visita.
+- Fecha y hora de junta de aclaraciones.
+- Fecha y hora de presentacion.
+- Fecha y hora de fallo.
+
 ## Publicacion
 
 La ruta recomendada es:
