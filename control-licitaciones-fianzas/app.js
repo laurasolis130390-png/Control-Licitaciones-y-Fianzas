@@ -75,12 +75,16 @@ const moduleDefinitions = {
       ["fecha_publicacion", "Fecha de publicacion", "date"],
       ["fecha_visita", "Fecha de visita", "date"],
       ["hora_visita", "Hora de visita", "time"],
+      ["estatus_visita", "Estatus de visita", "select", false, ["Pendiente", "Proximo a vencer", "Trabajado"]],
       ["fecha_junta_aclaraciones", "Fecha de junta de aclaraciones", "date"],
       ["hora_junta_aclaraciones", "Hora de junta de aclaraciones", "time"],
+      ["estatus_junta_aclaraciones", "Estatus de junta de aclaraciones", "select", false, ["Pendiente", "Proximo a vencer", "Trabajado"]],
       ["fecha_presentacion", "Fecha de presentacion", "date"],
       ["hora_presentacion", "Hora de presentacion", "time"],
+      ["estatus_presentacion", "Estatus de presentacion", "select", false, ["Pendiente", "Proximo a vencer", "Trabajado"]],
       ["fecha_fallo", "Fecha de fallo", "date"],
       ["hora_fallo", "Hora de fallo", "time"],
+      ["estatus_fallo", "Estatus de fallo", "select", false, ["Pendiente", "Proximo a vencer", "Trabajado"]],
       ["estatus", "Estatus", "select", false, ["Pendiente", "En elaboracion", "Presentada", "Adjudicada", "No adjudicada", "Trabajado", "Cancelado"]],
       ["responsable", "Responsable", "text"],
       ["observaciones", "Observaciones", "textarea"],
@@ -266,12 +270,39 @@ async function supabaseRequest(table, options = {}) {
 }
 
 function loadLocalStore() {
-  const saved = JSON.parse(localStorage.getItem(localKey) || "null");
-  store = { ...createEmptyStore(), ...(saved || {}) };
+  try {
+    const saved = JSON.parse(localStorage.getItem(localKey) || "null");
+    store = { ...createEmptyStore(), ...(saved || {}) };
+  } catch (error) {
+    console.error(error);
+    store = createEmptyStore();
+  }
 }
 
 function saveLocalStore() {
-  localStorage.setItem(localKey, JSON.stringify(store));
+  try {
+    localStorage.setItem(localKey, JSON.stringify(stripLargeFilesFromStore(store)));
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+function stripLargeFilesFromStore(sourceStore) {
+  return Object.fromEntries(
+    Object.entries(sourceStore).map(([table, rows]) => [
+      table,
+      (rows || []).map((row) =>
+        Object.fromEntries(
+          Object.entries(row).filter(([key, value]) => {
+            if (typeof value !== "string") return true;
+            if (value.startsWith("data:application/pdf")) return false;
+            if (key.endsWith("_pdf") || key === "archivo_pdf" || key === "oficio_solicitud" || key === "acuse") return false;
+            return true;
+          }),
+        ),
+      ),
+    ]),
+  );
 }
 
 async function loadStore() {
@@ -327,6 +358,18 @@ async function mergeLocalIntoSupabase(localStore, remoteStore) {
 
 function prepareRecord(table, record) {
   const cleanRecord = Object.fromEntries(Object.entries(record).filter(([, value]) => value !== ""));
+
+  if (editingState?.id) {
+    const current = store[table]?.find((item) => item.id === editingState.id);
+    if (current) {
+      for (const [key, value] of Object.entries(current)) {
+        if ((key.endsWith("_pdf") || key === "archivo_pdf" || key === "oficio_solicitud" || key === "acuse") && !cleanRecord[key] && value) {
+          cleanRecord[key] = value;
+          if (current[`${key}_nombre`]) cleanRecord[`${key}_nombre`] = current[`${key}_nombre`];
+        }
+      }
+    }
+  }
 
   if (table === "fianzas_garantias" && cleanRecord.monto) {
     cleanRecord.monto = Number(String(cleanRecord.monto).replace(/[^0-9.-]/g, "")).toFixed(2);
@@ -612,30 +655,30 @@ function renderKpis() {
 }
 
 function renderUrgentRows() {
-  const rows = store.pendientes
-    .filter((item) => ["Alta", "Media"].includes(item.prioridad) && !["Entregado", "Cancelado"].includes(item.estatus))
-    .sort((a, b) => (a.fecha_limite || "").localeCompare(b.fecha_limite || ""))
+  const rows = getDueRecords()
+    .filter((item) => ["Pendiente", "Proximo a vencer", "Vencido", "En tramite", "Observado"].includes(item.estatus || "Pendiente"))
+    .sort((a, b) => (a.fecha_vencimiento || a.fecha_limite || "").localeCompare(b.fecha_vencimiento || b.fecha_limite || ""))
     .slice(0, 5);
 
   document.querySelector("#urgentRows").innerHTML = rows.length
     ? rows
         .map((item) => {
-          const priorityClass = (item.prioridad || "Media").toLowerCase();
-          const left = daysUntil(item.fecha_limite);
+          const priorityClass = daysUntil(item.fecha_vencimiento || item.fecha_limite) <= 7 ? "alta" : "media";
+          const left = daysUntil(item.fecha_vencimiento || item.fecha_limite);
           const dateClass = left < 0 ? "date-red" : left <= 7 ? "date-orange" : "date-yellow";
           return `
             <tr>
-              <td><span class="pill ${priorityClass}">${item.prioridad || "Media"}</span></td>
+              <td><span class="pill ${priorityClass}">${left < 0 ? "Vencido" : left <= 7 ? "Alta" : "Media"}</span></td>
               <td>${item.titulo || ""}</td>
               <td>${item.licitacion_relacionada || ""}</td>
               <td>${item.dependencia || ""}</td>
-              <td class="${dateClass}">${formatDate(item.fecha_limite)}</td>
+              <td class="${dateClass}">${formatDate(item.fecha_vencimiento || item.fecha_limite)}</td>
               <td><span class="status" style="--status-color:${statusColors[item.estatus] || "#a9b5c8"}">${item.estatus || "Pendiente"}</span></td>
             </tr>
           `;
         })
         .join("")
-    : `<tr><td colspan="6"><div class="empty-state small">Sin pendientes urgentes. Cuando captures tareas con fecha limite apareceran aqui.</div></td></tr>`;
+    : `<tr><td colspan="6"><div class="empty-state small">Sin eventos pendientes o proximos.</div></td></tr>`;
 }
 
 function renderCalendar() {
@@ -709,20 +752,20 @@ function getEventColor(item, left = daysUntil(item.fecha_vencimiento || item.fec
 
 function getBidEvents(item) {
   return [
-    ["Visita", item.fecha_visita, item.hora_visita],
-    ["Junta de aclaraciones", item.fecha_junta_aclaraciones, item.hora_junta_aclaraciones],
-    ["Presentacion", item.fecha_presentacion, item.hora_presentacion],
-    ["Fallo", item.fecha_fallo, item.hora_fallo],
+    ["Visita", item.fecha_visita, item.hora_visita, item.estatus_visita],
+    ["Junta de aclaraciones", item.fecha_junta_aclaraciones, item.hora_junta_aclaraciones, item.estatus_junta_aclaraciones],
+    ["Presentacion", item.fecha_presentacion, item.hora_presentacion, item.estatus_presentacion],
+    ["Fallo", item.fecha_fallo, item.hora_fallo, item.estatus_fallo],
   ]
     .filter(([, date]) => date)
-    .map(([label, date, time]) => ({
+    .map(([label, date, time, eventStatus]) => ({
       id: `${item.id}-${label}`,
       titulo: `${label}: ${item.nombre}`,
       licitacion_relacionada: item.nombre,
       dependencia: item.dependencia,
       fecha_limite: date,
       hora_limite: time,
-      estatus: item.estatus,
+      estatus: eventStatus || "Pendiente",
       event_type: "licitacion",
     }));
 }
@@ -921,7 +964,7 @@ function renderField([name, label, type, required, options], record = {}, defini
 
   if (type === "file") {
     const fileName = record?.[`${name}_nombre`];
-    const existing = value ? `<a class="file-link" href="${escapeHtml(value)}" target="_blank" rel="noopener">${escapeHtml(fileName || "Ver PDF cargado")}</a>` : "";
+    const existing = value ? `<a class="file-link" href="${escapeHtml(value)}" download="${escapeHtml(fileName || "documento.pdf")}" target="_blank" rel="noopener">${escapeHtml(fileName || "Descargar PDF cargado")}</a>` : "";
     return `<label class="field"><span>${label}</span><input name="${name}" type="file" accept="application/pdf" />${existing}</label>`;
   }
 
@@ -1060,10 +1103,10 @@ function escapeHtml(value) {
 
 function renderBidSchedule(record) {
   const items = [
-    ["Visita", record.fecha_visita, record.hora_visita],
-    ["Junta", record.fecha_junta_aclaraciones, record.hora_junta_aclaraciones],
-    ["Presentacion", record.fecha_presentacion, record.hora_presentacion],
-    ["Fallo", record.fecha_fallo, record.hora_fallo],
+    ["Visita", record.fecha_visita, record.hora_visita, record.estatus_visita],
+    ["Junta", record.fecha_junta_aclaraciones, record.hora_junta_aclaraciones, record.estatus_junta_aclaraciones],
+    ["Presentacion", record.fecha_presentacion, record.hora_presentacion, record.estatus_presentacion],
+    ["Fallo", record.fecha_fallo, record.hora_fallo, record.estatus_fallo],
   ].filter(([, date, time]) => date || time);
 
   if (!items.length) {
@@ -1074,10 +1117,10 @@ function renderBidSchedule(record) {
     <div class="schedule-strip">
       ${items
         .map(
-          ([label, date, time]) => `
+          ([label, date, time, eventStatus]) => `
             <span>
               <b>${label}</b>
-              ${date ? formatDate(date) : "Sin fecha"}${time ? ` · ${time}` : ""}
+              ${date ? formatDate(date) : "Sin fecha"}${time ? ` · ${time}` : ""}${eventStatus ? ` · ${eventStatus}` : ""}
             </span>
           `,
         )

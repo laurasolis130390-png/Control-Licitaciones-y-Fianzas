@@ -121,12 +121,16 @@ create table if not exists licitaciones (
   fecha_publicacion date,
   fecha_visita date,
   hora_visita time,
+  estatus_visita text default 'Pendiente',
   fecha_junta_aclaraciones date,
   hora_junta_aclaraciones time,
+  estatus_junta_aclaraciones text default 'Pendiente',
   fecha_presentacion date,
   hora_presentacion time,
+  estatus_presentacion text default 'Pendiente',
   fecha_fallo date,
   hora_fallo time,
+  estatus_fallo text default 'Pendiente',
   estatus text default 'En elaboracion',
   responsable text,
   observaciones text,
@@ -136,9 +140,13 @@ create table if not exists licitaciones (
 
 alter table licitaciones add column if not exists fecha_visita date;
 alter table licitaciones add column if not exists hora_visita time;
+alter table licitaciones add column if not exists estatus_visita text default 'Pendiente';
 alter table licitaciones add column if not exists hora_junta_aclaraciones time;
+alter table licitaciones add column if not exists estatus_junta_aclaraciones text default 'Pendiente';
 alter table licitaciones add column if not exists hora_presentacion time;
+alter table licitaciones add column if not exists estatus_presentacion text default 'Pendiente';
 alter table licitaciones add column if not exists hora_fallo time;
+alter table licitaciones add column if not exists estatus_fallo text default 'Pendiente';
 
 create table if not exists fianzas_garantias (
   id uuid primary key default gen_random_uuid(),
