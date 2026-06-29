@@ -206,6 +206,7 @@ function saveLocalStore() {
 
 async function loadStore() {
   loadLocalStore();
+  const localStore = structuredClone(store);
 
   if (!supabaseReady()) {
     syncMode = "local";
@@ -214,13 +215,35 @@ async function loadStore() {
 
   try {
     const entries = await Promise.all(tableNames.map(async (table) => [table, await supabaseRequest(table, { query: "?select=*&order=created_at.desc" })]));
-    store = Object.fromEntries(entries);
+    const remoteStore = Object.fromEntries(entries);
+    store = await mergeLocalIntoSupabase(localStore, remoteStore);
     saveLocalStore();
     syncMode = "supabase";
   } catch (error) {
     console.error(error);
     syncMode = "local";
   }
+}
+
+async function mergeLocalIntoSupabase(localStore, remoteStore) {
+  const mergedStore = { ...createEmptyStore(), ...remoteStore };
+
+  for (const table of tableNames) {
+    const remoteIds = new Set((remoteStore[table] || []).map((item) => item.id));
+    const localOnly = (localStore[table] || []).filter((item) => item.id && !remoteIds.has(item.id));
+
+    for (const item of localOnly) {
+      try {
+        const [saved] = await supabaseRequest(table, { method: "POST", body: item });
+        mergedStore[table] = [saved, ...(mergedStore[table] || [])];
+      } catch (error) {
+        console.error(error);
+        mergedStore[table] = [item, ...(mergedStore[table] || [])];
+      }
+    }
+  }
+
+  return mergedStore;
 }
 
 function prepareRecord(table, record) {
