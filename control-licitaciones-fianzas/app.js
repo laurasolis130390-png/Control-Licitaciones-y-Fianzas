@@ -197,6 +197,45 @@ delete moduleDefinitions.Dependencias;
 
 const tableNames = Object.values(moduleDefinitions).map((item) => item.table);
 const localKey = "controlLicitacionesFianzasData";
+const maxInlinePdfSize = 750 * 1024;
+const tableSelects = {
+  empresas: [
+    "id",
+    "nombre",
+    "rfc",
+    "personalidad_juridica",
+    "telefono",
+    "fax",
+    "correo",
+    "calle_numero",
+    "colonia",
+    "codigo_postal",
+    "municipio_delegacion",
+    "entidad_federativa",
+    "numero_escritura_constitutiva",
+    "fecha_escritura_constitutiva",
+    "nombre_notario",
+    "notaria_numero",
+    "lugar_notaria",
+    "registro_publico_propiedad",
+    "fecha_registro_publico",
+    "relacion_socios",
+    "objeto_social",
+    "representante_legal",
+    "escritura_facultades",
+    "notaria_facultades_numero",
+    "lugar_notaria_facultades",
+    "fecha_facultades",
+    "notario_facultades",
+    "reformas",
+    "observaciones",
+    ...empresaDocumentos.flatMap(([key]) => [`${key}_numero`, `${key}_pdf_nombre`, `${key}_fecha`]),
+    "created_at",
+    "updated_at",
+  ].join(","),
+  fianzas_garantias: "id,tipo,licitacion_relacionada,dependencia,monto,afianzadora,numero_poliza,fecha_emision,fecha_vencimiento,estatus,archivo_pdf_nombre,observaciones,created_at,updated_at",
+  liberaciones: "id,tipo,fianza_relacionada,licitacion_relacionada,dependencia,fecha_solicitud,fecha_limite,fecha_liberacion,estatus,oficio_solicitud_nombre,acuse_nombre,observaciones,created_at,updated_at",
+};
 const statusColors = {
   Pendiente: "#ff4747",
   "En tramite": "#ff8516",
@@ -241,6 +280,10 @@ function supabaseReady() {
   return Boolean(config.url && config.anonKey);
 }
 
+function getTableSelect(table) {
+  return tableSelects[table] || "*";
+}
+
 async function supabaseRequest(table, options = {}) {
   const config = getSupabaseConfig();
   const controller = new AbortController();
@@ -273,6 +316,7 @@ function loadLocalStore() {
   try {
     const saved = JSON.parse(localStorage.getItem(localKey) || "null");
     store = { ...createEmptyStore(), ...(saved || {}) };
+    localStorage.setItem(localKey, JSON.stringify(stripLargeFilesFromStore(store)));
   } catch (error) {
     console.error(error);
     store = createEmptyStore();
@@ -318,7 +362,7 @@ async function loadStore() {
     const entries = await Promise.all(
       tableNames.map(async (table) => {
         try {
-          return [table, await supabaseRequest(table, { query: "?select=*&order=created_at.desc" })];
+          return [table, await supabaseRequest(table, { query: `?select=${getTableSelect(table)}&order=created_at.desc` })];
         } catch (error) {
           console.error(error);
           return [table, localStore[table] || []];
@@ -395,6 +439,9 @@ async function collectFormRecord(formElement) {
   for (const [name, value] of form.entries()) {
     if (value instanceof File) {
       if (value.name && value.size > 0) {
+        if (value.size > maxInlinePdfSize) {
+          throw new Error(`El PDF "${value.name}" pesa mas de 750 KB. Para no trabar el sistema, sube un PDF mas ligero o lo pasamos a almacenamiento formal.`);
+        }
         record[name] = await fileToDataUrl(value);
         record[`${name}_nombre`] = value.name;
       }
@@ -917,12 +964,18 @@ function renderModule(moduleName) {
 
   document.querySelector("#recordForm").addEventListener("submit", async (event) => {
     event.preventDefault();
-    const record = await collectFormRecord(event.currentTarget);
-    if (editingRecord) {
-      await updateRecord(definition.table, editingRecord.id, record);
-      editingState = null;
-    } else {
-      await saveRecord(definition.table, record);
+    let record;
+    try {
+      record = await collectFormRecord(event.currentTarget);
+      if (editingRecord) {
+        await updateRecord(definition.table, editingRecord.id, record);
+        editingState = null;
+      } else {
+        await saveRecord(definition.table, record);
+      }
+    } catch (error) {
+      alert(error.message || "No se pudo guardar el registro.");
+      return;
     }
     renderModule(moduleName);
   });
@@ -964,7 +1017,11 @@ function renderField([name, label, type, required, options], record = {}, defini
 
   if (type === "file") {
     const fileName = record?.[`${name}_nombre`];
-    const existing = value ? `<a class="file-link" href="${escapeHtml(value)}" download="${escapeHtml(fileName || "documento.pdf")}" target="_blank" rel="noopener">${escapeHtml(fileName || "Descargar PDF cargado")}</a>` : "";
+    const existing = value
+      ? `<a class="file-link" href="${escapeHtml(value)}" download="${escapeHtml(fileName || "documento.pdf")}" target="_blank" rel="noopener">${escapeHtml(fileName || "Descargar PDF cargado")}</a>`
+      : fileName
+        ? `<span class="file-link muted-file">PDF guardado: ${escapeHtml(fileName)}</span>`
+        : "";
     return `<label class="field"><span>${label}</span><input name="${name}" type="file" accept="application/pdf" />${existing}</label>`;
   }
 
@@ -1158,8 +1215,33 @@ function renderSettings() {
         <h2>Siguientes conexiones</h2>
         <div class="empty-state">Para trabajar en equipo y publicarlo: subir a GitHub, conectar Vercel y pegar las llaves de Supabase en supabase-config.js.</div>
       </article>
+      <article class="panel">
+        <h2>Respaldo local</h2>
+        <div class="settings-list">
+          <div><span>Datos locales detectados</span><strong id="localBackupStatus">Revisando...</strong></div>
+        </div>
+        <button class="primary-button backup-button" type="button" id="downloadLocalBackup">Descargar respaldo local</button>
+      </article>
     </section>
   `;
+
+  const localRaw = localStorage.getItem(localKey);
+  const status = document.querySelector("#localBackupStatus");
+  status.textContent = localRaw ? "Si" : "No";
+
+  document.querySelector("#downloadLocalBackup").addEventListener("click", () => {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      origin: location.origin,
+      data: localRaw ? JSON.parse(localRaw) : createEmptyStore(),
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "respaldo-control-licitaciones.json";
+    link.click();
+    URL.revokeObjectURL(link.href);
+  });
 }
 
 loadStore().then(renderApp);
