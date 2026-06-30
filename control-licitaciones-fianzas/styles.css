@@ -307,6 +307,21 @@ h1 {
   margin-bottom: 1rem;
 }
 
+.priority-calendars {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  margin-bottom: 1rem;
+}
+
+.quote-calendar-panel {
+  min-height: 260px;
+}
+
+.quote-calendar-panel .calendar {
+  max-width: 520px;
+  margin-inline: auto;
+}
+
 .kpi-card,
 .panel {
   border: 1px solid var(--line);
@@ -881,6 +896,11 @@ td:nth-child(4) {
 
 .primary-button:hover {
   filter: brightness(1.04);
+}
+
+.backup-button {
+  width: 100%;
+  margin-top: 1rem;
 }
 
 .records-list {

@@ -283,6 +283,23 @@ let editingState = null;
 let calendarDate = new Date();
 let quoteCalendarDate = new Date();
 
+function getModuleFromHash() {
+  const requested = decodeURIComponent((window.location.hash || "").replace("#", ""));
+  return modules.some(([label]) => label === requested) ? requested : "Inicio";
+}
+
+function activateModule(moduleName, shouldUpdateHash = true) {
+  activeModule = moduleName;
+  editingState = null;
+  if (shouldUpdateHash) {
+    const nextHash = moduleName === "Inicio" ? "#" : `#${encodeURIComponent(moduleName)}`;
+    if (window.location.hash !== nextHash) {
+      window.history.pushState(null, "", nextHash);
+    }
+  }
+  renderApp();
+}
+
 function createEmptyStore() {
   return Object.fromEntries(tableNames.map((name) => [name, []]));
 }
@@ -493,6 +510,7 @@ async function saveRecord(table, record) {
   if (supabaseReady()) {
     try {
       const [saved] = await supabaseRequest(table, { method: "POST", body: cleanRecord });
+      if (!saved) throw new Error("Supabase no regreso el registro guardado.");
       store[table] = [saved, ...store[table]];
       saveLocalStore();
       syncMode = "supabase";
@@ -500,6 +518,9 @@ async function saveRecord(table, record) {
     } catch (error) {
       console.error(error);
       syncMode = "local";
+      store[table] = [{ ...cleanRecord, id: crypto.randomUUID(), created_at: new Date().toISOString() }, ...store[table]];
+      saveLocalStore();
+      throw new Error("No quedo guardado en Supabase. Lo deje como respaldo local temporal; antes de seguir capturando hay que revisar la tabla y volver a guardar.");
     }
   }
 
@@ -513,6 +534,7 @@ async function updateRecord(table, id, record) {
   if (supabaseReady()) {
     try {
       const [saved] = await supabaseRequest(table, { method: "PATCH", query: `?id=eq.${id}`, body: cleanRecord });
+      if (!saved) throw new Error("Supabase no encontro el registro para actualizar.");
       store[table] = store[table].map((item) => (item.id === id ? saved : item));
       saveLocalStore();
       syncMode = "supabase";
@@ -520,6 +542,9 @@ async function updateRecord(table, id, record) {
     } catch (error) {
       console.error(error);
       syncMode = "local";
+      store[table] = store[table].map((item) => (item.id === id ? { ...item, ...cleanRecord, updated_at: new Date().toISOString() } : item));
+      saveLocalStore();
+      throw new Error("No se actualizo en Supabase. Conserve el cambio como respaldo local temporal; antes de seguir capturando hay que revisar la conexion.");
     }
   }
 
@@ -543,14 +568,13 @@ async function deleteRecord(table, id) {
 function renderNav() {
   const nav = document.querySelector("#moduleNav");
   nav.innerHTML = modules
-    .map(([label, iconId]) => `<a class="nav-item ${label === activeModule ? "active" : ""}" href="#" data-module="${label}">${icon(iconId)}<span>${label}</span></a>`)
+    .map(([label, iconId]) => `<a class="nav-item ${label === activeModule ? "active" : ""}" href="${label === "Inicio" ? "#" : `#${encodeURIComponent(label)}`}" data-module="${label}">${icon(iconId)}<span>${label}</span></a>`)
     .join("");
 
   nav.querySelectorAll(".nav-item").forEach((item) => {
     item.addEventListener("click", (event) => {
       event.preventDefault();
-      activeModule = item.dataset.module;
-      renderApp();
+      activateModule(item.dataset.module);
     });
   });
 }
@@ -627,6 +651,19 @@ function renderDashboard() {
   document.querySelector("#viewRoot").innerHTML = `
     <section class="urgent-ribbon" id="urgentRibbon"></section>
     <section class="kpi-grid" id="kpiGrid" aria-label="Resumen general"></section>
+    <section class="priority-calendars">
+      <article class="panel calendar-panel quote-calendar-panel">
+        <div class="panel-header split">
+          <h2>${icon("icon-calendar")}Calendario de Cotizaciones</h2>
+          <div class="calendar-arrows quote-arrows">
+            <button class="icon-button compact" type="button" data-quote-month="-1" aria-label="Mes anterior">${icon("icon-chevron")}</button>
+            <button class="icon-button compact" type="button" data-quote-month="1" aria-label="Mes siguiente">${icon("icon-chevron")}</button>
+          </div>
+        </div>
+        <p class="calendar-month" id="quoteCalendarMonth"></p>
+        <div class="calendar" id="quoteCalendarGrid"></div>
+      </article>
+    </section>
     <section class="content-grid">
       <div class="left-stack">
         <article class="panel urgent-panel">
@@ -689,17 +726,6 @@ function renderDashboard() {
           <h2>${icon("icon-clock")}Proximos a vencer</h2>
           <div id="dueList"></div>
           <a class="panel-link" href="#" data-go="Reportes">Ver todos ${icon("icon-chevron")}</a>
-        </article>
-        <article class="panel calendar-panel">
-          <div class="panel-header split">
-            <h2>${icon("icon-calendar")}Calendario de Cotizaciones</h2>
-            <div class="calendar-arrows quote-arrows">
-              <button class="icon-button compact" type="button" data-quote-month="-1" aria-label="Mes anterior">${icon("icon-chevron")}</button>
-              <button class="icon-button compact" type="button" data-quote-month="1" aria-label="Mes siguiente">${icon("icon-chevron")}</button>
-            </div>
-          </div>
-          <p class="calendar-month" id="quoteCalendarMonth"></p>
-          <div class="calendar" id="quoteCalendarGrid"></div>
         </article>
       </aside>
     </section>
@@ -1384,4 +1410,14 @@ function renderSettings() {
   });
 }
 
+window.addEventListener("hashchange", () => {
+  const nextModule = getModuleFromHash();
+  if (nextModule !== activeModule) {
+    activeModule = nextModule;
+    editingState = null;
+    renderApp();
+  }
+});
+
+activeModule = getModuleFromHash();
 loadStore().then(renderApp);
