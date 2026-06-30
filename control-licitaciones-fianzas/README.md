@@ -41,3 +41,4 @@ La ruta recomendada es:
 2. Conectar el repositorio en Vercel.
 3. Publicar como sitio estatico.
 4. Configurar Supabase antes de capturar informacion real.
+actualizacion
