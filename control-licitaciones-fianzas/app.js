@@ -3,22 +3,26 @@ const modules = [
   ["Empresas", "icon-building"],
   ["Licitaciones", "icon-file"],
   ["Fianzas y Garantias", "icon-shield"],
-  ["Liberaciones", "icon-stamp"],
+  ["Cotizaciones", "icon-stamp"],
   ["Generador de Checklist", "icon-chart"],
   ["Reportes", "icon-chart"],
   ["Configuracion", "icon-settings"],
 ];
 
 const empresaDocumentos = [
-  ["tianguis_digital", "Tianguis Digital"],
-  ["repse", "REPSE"],
+  ["tianguis_digital", "Tianguis Digital", true],
+  ["repse", "REPSE", true],
   ["constancia_situacion_fiscal", "Constancia de situacion fiscal"],
   ["opinion_sat", "Opinion de cumplimiento SAT"],
   ["opinion_imss", "Opinion de cumplimiento IMSS"],
   ["opinion_infonavit", "Opinion de cumplimiento INFONAVIT"],
   ["caratula_banco", "Caratula de banco"],
   ["comprobante_domicilio", "Comprobante de domicilio"],
+  ["sua", "SUA"],
+  ["impuesto_nomina", "Impuesto sobre nomina"],
 ];
+
+const declaracionesMeses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 
 const moduleDefinitions = {
   Empresas: {
@@ -54,10 +58,11 @@ const moduleDefinitions = {
       ["fecha_facultades", "Fecha de facultades", "date"],
       ["notario_facultades", "Notario de facultades", "text"],
       ["reformas", "Reformas o modificaciones", "textarea"],
-      ...empresaDocumentos.flatMap(([key, label]) => [
-        [`${key}_numero`, `${label} - numero o folio`, "text"],
+      ...empresaDocumentos.flatMap(([key, label, hasNumber]) => [
+        ...(hasNumber ? [[`${key}_numero`, `${label} - numero o folio`, "text"]] : []),
         [`${key}_fecha`, `${label} - fecha de actualizacion`, "date"],
       ]),
+      ...declaracionesMeses.map((mes) => [`declaracion_${mes}_fecha`, `Declaracion ${mes} - fecha`, "date"]),
       ["observaciones", "Observaciones", "textarea"],
     ],
   },
@@ -103,8 +108,25 @@ const moduleDefinitions = {
       ["numero_poliza", "Numero de poliza", "text"],
       ["fecha_emision", "Fecha de emision", "date"],
       ["fecha_vencimiento", "Fecha de vencimiento", "date"],
+      ["fecha_seguimiento", "Fecha de seguimiento", "date"],
       ["estatus", "Estatus", "select", false, ["Pendiente", "En tramite", "Vigente", "Proximo a vencer", "Vencido", "Liberado", "Trabajado", "Cancelado"]],
       ["archivo_pdf", "Referencia del archivo PDF", "text"],
+      ["observaciones", "Observaciones", "textarea"],
+    ],
+  },
+  Cotizaciones: {
+    table: "cotizaciones",
+    title: "Cotizaciones",
+    subtitle: "Seguimiento de solicitudes, fechas limite y envios de cotizaciones.",
+    primary: "titulo",
+    fields: [
+      ["titulo", "Titulo o descripcion", "text", true],
+      ["dependencia_solicitante", "Dependencia que solicita", "text"],
+      ["empresa_participante", "Empresa", "relation", false, "empresas"],
+      ["fecha_solicitud", "Fecha de solicitud", "date"],
+      ["fecha_limite_envio", "Fecha limite para enviar", "date"],
+      ["fecha_envio", "Fecha de envio de nosotros", "date"],
+      ["estatus", "Estatus", "select", false, ["Pendiente", "En tramite", "Enviada", "Trabajado", "Cancelado"]],
       ["observaciones", "Observaciones", "textarea"],
     ],
   },
@@ -228,12 +250,14 @@ const tableSelects = {
     "notario_facultades",
     "reformas",
     "observaciones",
-    ...empresaDocumentos.flatMap(([key]) => [`${key}_numero`, `${key}_fecha`]),
+    ...empresaDocumentos.flatMap(([key, , hasNumber]) => [...(hasNumber ? [`${key}_numero`] : []), `${key}_fecha`]),
+    ...declaracionesMeses.map((mes) => `declaracion_${mes}_fecha`),
     "created_at",
     "updated_at",
   ].join(","),
-  fianzas_garantias: "id,tipo,licitacion_relacionada,dependencia,monto,afianzadora,numero_poliza,fecha_emision,fecha_vencimiento,estatus,archivo_pdf,observaciones,created_at,updated_at",
+  fianzas_garantias: "id,tipo,licitacion_relacionada,dependencia,monto,afianzadora,numero_poliza,fecha_emision,fecha_vencimiento,fecha_seguimiento,estatus,archivo_pdf,observaciones,created_at,updated_at",
   liberaciones: "id,tipo,fianza_relacionada,licitacion_relacionada,dependencia,fecha_solicitud,fecha_limite,fecha_liberacion,estatus,oficio_solicitud,acuse,observaciones,created_at,updated_at",
+  cotizaciones: "id,titulo,dependencia_solicitante,empresa_participante,fecha_solicitud,fecha_limite_envio,fecha_envio,estatus,observaciones,created_at,updated_at",
 };
 const statusColors = {
   Pendiente: "#ff4747",
@@ -256,6 +280,8 @@ let activeModule = "Inicio";
 let store = createEmptyStore();
 let syncMode = "local";
 let editingState = null;
+let calendarDate = new Date();
+let quoteCalendarDate = new Date();
 
 function createEmptyStore() {
   return Object.fromEntries(tableNames.map((name) => [name, []]));
@@ -573,7 +599,7 @@ function daysUntil(value) {
 function getKpis() {
   const licitacionesActivas = store.licitaciones.filter((item) => !["Cancelado", "No adjudicada"].includes(item.estatus)).length;
   const fianzasVigentes = store.fianzas_garantias.filter((item) => item.estatus === "Vigente").length;
-  const liberacionesPendientes = store.liberaciones.filter((item) => ["Pendiente", "En tramite", "Observado"].includes(item.estatus)).length;
+  const cotizacionesPendientes = store.cotizaciones.filter((item) => ["Pendiente", "En tramite"].includes(item.estatus)).length;
   const dueSources = getDueRecords();
   const proximos = dueSources.filter((item) => {
     const left = daysUntil(item.fecha_vencimiento || item.fecha_limite);
@@ -587,7 +613,7 @@ function getKpis() {
   return [
     { title: "Licitaciones activas", value: licitacionesActivas, icon: "icon-file", color: "#3d8bff" },
     { title: "Fianzas vigentes", value: fianzasVigentes, icon: "icon-shield", color: "#4fc768" },
-    { title: "Liberaciones pendientes", value: liberacionesPendientes, icon: "icon-stamp", color: "#ff8516" },
+    { title: "Cotizaciones pendientes", value: cotizacionesPendientes, icon: "icon-stamp", color: "#ff8516" },
     { title: "Proximos a vencer", value: proximos, icon: "icon-alert", color: "#ffc31f" },
     { title: "Vencidos / atrasados", value: vencidos, icon: "icon-clock", color: "#ff4747" },
   ];
@@ -599,6 +625,7 @@ function renderDashboard() {
   document.querySelector("#notificationCount").textContent = getKpis()[4].value;
 
   document.querySelector("#viewRoot").innerHTML = `
+    <section class="urgent-ribbon" id="urgentRibbon"></section>
     <section class="kpi-grid" id="kpiGrid" aria-label="Resumen general"></section>
     <section class="content-grid">
       <div class="left-stack">
@@ -645,11 +672,11 @@ function renderDashboard() {
           <div class="panel-header split">
             <h2>${icon("icon-calendar")}Calendario de Eventos</h2>
             <div class="calendar-arrows">
-              <button class="icon-button compact" type="button" aria-label="Mes anterior">${icon("icon-chevron")}</button>
-              <button class="icon-button compact" type="button" aria-label="Mes siguiente">${icon("icon-chevron")}</button>
+              <button class="icon-button compact" type="button" data-main-month="-1" aria-label="Mes anterior">${icon("icon-chevron")}</button>
+              <button class="icon-button compact" type="button" data-main-month="1" aria-label="Mes siguiente">${icon("icon-chevron")}</button>
             </div>
           </div>
-          <p class="calendar-month">${new Intl.DateTimeFormat("es-MX", { month: "long", year: "numeric" }).format(new Date())}</p>
+          <p class="calendar-month" id="mainCalendarMonth"></p>
           <div class="calendar" id="calendarGrid"></div>
           <div class="calendar-legend">
             <span><i class="dot red"></i>Vencidos</span>
@@ -663,6 +690,17 @@ function renderDashboard() {
           <div id="dueList"></div>
           <a class="panel-link" href="#" data-go="Reportes">Ver todos ${icon("icon-chevron")}</a>
         </article>
+        <article class="panel calendar-panel">
+          <div class="panel-header split">
+            <h2>${icon("icon-calendar")}Calendario de Cotizaciones</h2>
+            <div class="calendar-arrows quote-arrows">
+              <button class="icon-button compact" type="button" data-quote-month="-1" aria-label="Mes anterior">${icon("icon-chevron")}</button>
+              <button class="icon-button compact" type="button" data-quote-month="1" aria-label="Mes siguiente">${icon("icon-chevron")}</button>
+            </div>
+          </div>
+          <p class="calendar-month" id="quoteCalendarMonth"></p>
+          <div class="calendar" id="quoteCalendarGrid"></div>
+        </article>
       </aside>
     </section>
     <div class="event-modal" id="eventModal" hidden>
@@ -674,13 +712,16 @@ function renderDashboard() {
     </div>
   `;
 
+  renderUrgentRibbon();
   renderKpis();
   renderUrgentRows();
   renderCalendar();
+  renderQuoteCalendar();
   renderDueList();
   renderLegends();
   bindDashboardLinks();
   bindCalendarEvents();
+  bindCalendarNavigation();
 }
 
 function renderKpis() {
@@ -729,9 +770,10 @@ function renderUrgentRows() {
 
 function renderCalendar() {
   const grid = document.querySelector("#calendarGrid");
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth();
+  const monthLabel = document.querySelector("#mainCalendarMonth");
+  const year = calendarDate.getFullYear();
+  const month = calendarDate.getMonth();
+  monthLabel.textContent = new Intl.DateTimeFormat("es-MX", { month: "long", year: "numeric" }).format(calendarDate);
   const weekDays = ["D", "L", "M", "M", "J", "V", "S"];
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -762,14 +804,61 @@ function renderCalendar() {
   grid.innerHTML = [...weekDays.map((day) => `<span>${day}</span>`), ...blanks, ...days].join("");
 }
 
+function renderQuoteCalendar() {
+  const grid = document.querySelector("#quoteCalendarGrid");
+  const monthLabel = document.querySelector("#quoteCalendarMonth");
+  const year = quoteCalendarDate.getFullYear();
+  const month = quoteCalendarDate.getMonth();
+  const weekDays = ["D", "L", "M", "M", "J", "V", "S"];
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const events = getQuoteEvents();
+  monthLabel.textContent = new Intl.DateTimeFormat("es-MX", { month: "long", year: "numeric" }).format(quoteCalendarDate);
+
+  const blanks = Array.from({ length: firstDay }, () => `<button class="muted"></button>`);
+  const days = Array.from({ length: daysInMonth }, (_, index) => {
+    const day = index + 1;
+    const dayEvents = events.filter((item) => {
+      const date = new Date(`${item.fecha_limite}T00:00:00`);
+      return date.getFullYear() === year && date.getMonth() === month && date.getDate() === day;
+    });
+    const color = dayEvents.some((item) => item.estatus === "Trabajado" || item.estatus === "Enviada") ? "#8a94a6" : dayEvents.length ? "#ff8516" : "";
+    return `<button class="${color ? "marked" : ""}" data-quote-day="${day}" style="${color ? `--mark:${color}` : ""}">${day}${dayEvents.length ? `<small>${dayEvents.length}</small>` : ""}</button>`;
+  });
+
+  grid.innerHTML = [...weekDays.map((day) => `<span>${day}</span>`), ...blanks, ...days].join("");
+}
+
 function getDueRecords() {
   return [
     ...store.licitaciones.flatMap((item) => getBidEvents(item)),
     ...store.empresas.flatMap((item) => getCompanyDocumentEvents(item)),
-    ...store.fianzas_garantias.map((item) => ({ ...item, titulo: item.tipo, fecha_limite: item.fecha_vencimiento })),
+    ...store.fianzas_garantias.flatMap((item) => getBondEvents(item)),
     ...store.liberaciones.map((item) => ({ ...item, titulo: item.tipo })),
     ...store.pendientes,
   ];
+}
+
+function getBondEvents(item) {
+  const events = [];
+  if (item.fecha_vencimiento) {
+    events.push({ ...item, titulo: `Vencimiento: ${item.tipo}`, fecha_limite: item.fecha_vencimiento });
+  }
+  if (item.fecha_seguimiento) {
+    events.push({ ...item, titulo: `Seguimiento: ${item.tipo}`, fecha_limite: item.fecha_seguimiento, event_type: "seguimiento_fianza" });
+  }
+  return events;
+}
+
+function getQuoteEvents() {
+  return store.cotizaciones
+    .filter((item) => item.fecha_limite_envio || item.fecha_envio)
+    .flatMap((item) => {
+      const events = [];
+      if (item.fecha_limite_envio) events.push({ ...item, titulo: `Limite: ${item.titulo}`, fecha_limite: item.fecha_limite_envio });
+      if (item.fecha_envio) events.push({ ...item, titulo: `Enviada: ${item.titulo}`, fecha_limite: item.fecha_envio, estatus: "Enviada" });
+      return events;
+    });
 }
 
 function getCompanyDocumentEvents(item) {
@@ -787,6 +876,24 @@ function getCompanyDocumentEvents(item) {
         event_type: "empresa_documento",
       };
     });
+}
+
+function renderUrgentRibbon() {
+  const ribbon = document.querySelector("#urgentRibbon");
+  const alerts = getCompanyDocumentEventsFromAll()
+    .filter((item) => {
+      const left = daysUntil(item.fecha_limite);
+      return left !== null && left <= 5;
+    })
+    .slice(0, 6);
+
+  ribbon.innerHTML = alerts.length
+    ? alerts.map((item) => `<span>${escapeHtml(item.titulo)} · ${formatDate(item.fecha_limite)}</span>`).join("")
+    : `<span>Sin avisos urgentes de documentos empresariales.</span>`;
+}
+
+function getCompanyDocumentEventsFromAll() {
+  return store.empresas.flatMap((item) => getCompanyDocumentEvents(item));
 }
 
 function getEventColor(item, left = daysUntil(item.fecha_vencimiento || item.fecha_limite)) {
@@ -914,7 +1021,7 @@ function bindCalendarEvents() {
         const value = item.fecha_vencimiento || item.fecha_limite;
         if (!value) return false;
         const date = new Date(`${value}T00:00:00`);
-        return date.getFullYear() === today.getFullYear() && date.getMonth() === today.getMonth() && date.getDate() === day;
+        return date.getFullYear() === calendarDate.getFullYear() && date.getMonth() === calendarDate.getMonth() && date.getDate() === day;
       });
       if (!dayEvents.length) return;
       title.textContent = `Eventos del ${day}`;
@@ -927,6 +1034,40 @@ function bindCalendarEvents() {
 
   close?.addEventListener("click", () => {
     modal.hidden = true;
+  });
+
+  document.querySelectorAll("#quoteCalendarGrid [data-quote-day]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const day = Number(button.dataset.quoteDay);
+      const dayEvents = getQuoteEvents().filter((item) => {
+        const date = new Date(`${item.fecha_limite}T00:00:00`);
+        return date.getFullYear() === quoteCalendarDate.getFullYear() && date.getMonth() === quoteCalendarDate.getMonth() && date.getDate() === day;
+      });
+      if (!dayEvents.length) return;
+      title.textContent = `Cotizaciones del ${day}`;
+      body.innerHTML = dayEvents
+        .map((item) => `<strong>${escapeHtml(item.titulo || "Cotizacion")}</strong><span>${escapeHtml(item.dependencia_solicitante || "")}${item.empresa_participante ? ` · ${escapeHtml(item.empresa_participante)}` : ""}</span>`)
+        .join("");
+      modal.hidden = false;
+    });
+  });
+}
+
+function bindCalendarNavigation() {
+  document.querySelectorAll("[data-main-month]").forEach((button) => {
+    button.addEventListener("click", () => {
+      calendarDate.setMonth(calendarDate.getMonth() + Number(button.dataset.mainMonth));
+      renderCalendar();
+      bindCalendarEvents();
+    });
+  });
+
+  document.querySelectorAll("[data-quote-month]").forEach((button) => {
+    button.addEventListener("click", () => {
+      quoteCalendarDate.setMonth(quoteCalendarDate.getMonth() + Number(button.dataset.quoteMonth));
+      renderQuoteCalendar();
+      bindCalendarEvents();
+    });
   });
 }
 

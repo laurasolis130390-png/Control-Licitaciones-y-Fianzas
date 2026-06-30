@@ -62,6 +62,20 @@ create table if not exists empresas (
   comprobante_domicilio_pdf text,
   comprobante_domicilio_pdf_nombre text,
   comprobante_domicilio_fecha date,
+  sua_fecha date,
+  impuesto_nomina_fecha date,
+  declaracion_enero_fecha date,
+  declaracion_febrero_fecha date,
+  declaracion_marzo_fecha date,
+  declaracion_abril_fecha date,
+  declaracion_mayo_fecha date,
+  declaracion_junio_fecha date,
+  declaracion_julio_fecha date,
+  declaracion_agosto_fecha date,
+  declaracion_septiembre_fecha date,
+  declaracion_octubre_fecha date,
+  declaracion_noviembre_fecha date,
+  declaracion_diciembre_fecha date,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -98,6 +112,20 @@ alter table empresas add column if not exists comprobante_domicilio_numero text;
 alter table empresas add column if not exists comprobante_domicilio_pdf text;
 alter table empresas add column if not exists comprobante_domicilio_pdf_nombre text;
 alter table empresas add column if not exists comprobante_domicilio_fecha date;
+alter table empresas add column if not exists sua_fecha date;
+alter table empresas add column if not exists impuesto_nomina_fecha date;
+alter table empresas add column if not exists declaracion_enero_fecha date;
+alter table empresas add column if not exists declaracion_febrero_fecha date;
+alter table empresas add column if not exists declaracion_marzo_fecha date;
+alter table empresas add column if not exists declaracion_abril_fecha date;
+alter table empresas add column if not exists declaracion_mayo_fecha date;
+alter table empresas add column if not exists declaracion_junio_fecha date;
+alter table empresas add column if not exists declaracion_julio_fecha date;
+alter table empresas add column if not exists declaracion_agosto_fecha date;
+alter table empresas add column if not exists declaracion_septiembre_fecha date;
+alter table empresas add column if not exists declaracion_octubre_fecha date;
+alter table empresas add column if not exists declaracion_noviembre_fecha date;
+alter table empresas add column if not exists declaracion_diciembre_fecha date;
 
 create table if not exists dependencias (
   id uuid primary key default gen_random_uuid(),
@@ -158,6 +186,7 @@ create table if not exists fianzas_garantias (
   numero_poliza text,
   fecha_emision date,
   fecha_vencimiento date,
+  fecha_seguimiento date,
   estatus text default 'Pendiente',
   archivo_pdf text,
   archivo_pdf_nombre text,
@@ -167,6 +196,7 @@ create table if not exists fianzas_garantias (
 );
 
 alter table fianzas_garantias add column if not exists archivo_pdf_nombre text;
+alter table fianzas_garantias add column if not exists fecha_seguimiento date;
 
 create table if not exists liberaciones (
   id uuid primary key default gen_random_uuid(),
@@ -232,6 +262,20 @@ create table if not exists checklists (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists cotizaciones (
+  id uuid primary key default gen_random_uuid(),
+  titulo text not null,
+  dependencia_solicitante text,
+  empresa_participante text,
+  fecha_solicitud date,
+  fecha_limite_envio date,
+  fecha_envio date,
+  estatus text default 'Pendiente',
+  observaciones text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create or replace function set_updated_at()
 returns trigger as $$
 begin
@@ -264,12 +308,17 @@ create trigger set_archivos_updated_at before update on archivos for each row ex
 drop trigger if exists set_checklists_updated_at on checklists;
 create trigger set_checklists_updated_at before update on checklists for each row execute function set_updated_at();
 
+drop trigger if exists set_cotizaciones_updated_at on cotizaciones;
+create trigger set_cotizaciones_updated_at before update on cotizaciones for each row execute function set_updated_at();
+
 alter table dependencias enable row level security;
 alter table licitaciones enable row level security;
 alter table fianzas_garantias enable row level security;
 alter table liberaciones enable row level security;
 alter table pendientes enable row level security;
 alter table archivos enable row level security;
+alter table checklists enable row level security;
+alter table cotizaciones enable row level security;
 
 drop policy if exists "Acceso publico temporal dependencias" on dependencias;
 drop policy if exists "Acceso publico temporal licitaciones" on licitaciones;
@@ -277,6 +326,8 @@ drop policy if exists "Acceso publico temporal fianzas" on fianzas_garantias;
 drop policy if exists "Acceso publico temporal liberaciones" on liberaciones;
 drop policy if exists "Acceso publico temporal pendientes" on pendientes;
 drop policy if exists "Acceso publico temporal archivos" on archivos;
+drop policy if exists "Acceso publico temporal checklists" on checklists;
+drop policy if exists "Acceso publico temporal cotizaciones" on cotizaciones;
 
 create policy "Acceso publico temporal dependencias" on dependencias for all using (true) with check (true);
 create policy "Acceso publico temporal licitaciones" on licitaciones for all using (true) with check (true);
@@ -284,3 +335,5 @@ create policy "Acceso publico temporal fianzas" on fianzas_garantias for all usi
 create policy "Acceso publico temporal liberaciones" on liberaciones for all using (true) with check (true);
 create policy "Acceso publico temporal pendientes" on pendientes for all using (true) with check (true);
 create policy "Acceso publico temporal archivos" on archivos for all using (true) with check (true);
+create policy "Acceso publico temporal checklists" on checklists for all using (true) with check (true);
+create policy "Acceso publico temporal cotizaciones" on cotizaciones for all using (true) with check (true);
