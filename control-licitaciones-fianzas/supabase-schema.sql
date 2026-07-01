@@ -270,11 +270,14 @@ create table if not exists cotizaciones (
   fecha_solicitud date,
   fecha_limite_envio date,
   fecha_envio date,
+  fecha_seguimiento date,
   estatus text default 'Pendiente',
   observaciones text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table cotizaciones add column if not exists fecha_seguimiento date;
 
 create or replace function set_updated_at()
 returns trigger as $$
@@ -311,6 +314,7 @@ create trigger set_checklists_updated_at before update on checklists for each ro
 drop trigger if exists set_cotizaciones_updated_at on cotizaciones;
 create trigger set_cotizaciones_updated_at before update on cotizaciones for each row execute function set_updated_at();
 
+alter table empresas enable row level security;
 alter table dependencias enable row level security;
 alter table licitaciones enable row level security;
 alter table fianzas_garantias enable row level security;
@@ -320,6 +324,7 @@ alter table archivos enable row level security;
 alter table checklists enable row level security;
 alter table cotizaciones enable row level security;
 
+drop policy if exists "Acceso publico temporal empresas" on empresas;
 drop policy if exists "Acceso publico temporal dependencias" on dependencias;
 drop policy if exists "Acceso publico temporal licitaciones" on licitaciones;
 drop policy if exists "Acceso publico temporal fianzas" on fianzas_garantias;
@@ -329,6 +334,7 @@ drop policy if exists "Acceso publico temporal archivos" on archivos;
 drop policy if exists "Acceso publico temporal checklists" on checklists;
 drop policy if exists "Acceso publico temporal cotizaciones" on cotizaciones;
 
+create policy "Acceso publico temporal empresas" on empresas for all using (true) with check (true);
 create policy "Acceso publico temporal dependencias" on dependencias for all using (true) with check (true);
 create policy "Acceso publico temporal licitaciones" on licitaciones for all using (true) with check (true);
 create policy "Acceso publico temporal fianzas" on fianzas_garantias for all using (true) with check (true);

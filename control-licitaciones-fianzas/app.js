@@ -126,6 +126,7 @@ const moduleDefinitions = {
       ["fecha_solicitud", "Fecha de solicitud", "date"],
       ["fecha_limite_envio", "Fecha limite para enviar", "date"],
       ["fecha_envio", "Fecha de envio de nosotros", "date"],
+      ["fecha_seguimiento", "Fecha de seguimiento", "date"],
       ["estatus", "Estatus", "select", false, ["Pendiente", "En tramite", "Enviada", "Trabajado", "Cancelado"]],
       ["observaciones", "Observaciones", "textarea"],
     ],
@@ -257,7 +258,7 @@ const tableSelects = {
   ].join(","),
   fianzas_garantias: "id,tipo,licitacion_relacionada,dependencia,monto,afianzadora,numero_poliza,fecha_emision,fecha_vencimiento,fecha_seguimiento,estatus,archivo_pdf,observaciones,created_at,updated_at",
   liberaciones: "id,tipo,fianza_relacionada,licitacion_relacionada,dependencia,fecha_solicitud,fecha_limite,fecha_liberacion,estatus,oficio_solicitud,acuse,observaciones,created_at,updated_at",
-  cotizaciones: "id,titulo,dependencia_solicitante,empresa_participante,fecha_solicitud,fecha_limite_envio,fecha_envio,estatus,observaciones,created_at,updated_at",
+  cotizaciones: "id,titulo,dependencia_solicitante,empresa_participante,fecha_solicitud,fecha_limite_envio,fecha_envio,fecha_seguimiento,estatus,observaciones,created_at,updated_at",
 };
 const statusColors = {
   Pendiente: "#ff4747",
@@ -857,11 +858,12 @@ function getBondEvents(item) {
 
 function getQuoteEvents() {
   return store.cotizaciones
-    .filter((item) => item.fecha_limite_envio || item.fecha_envio)
+    .filter((item) => item.fecha_limite_envio || item.fecha_envio || item.fecha_seguimiento)
     .flatMap((item) => {
       const events = [];
       if (item.fecha_limite_envio) events.push({ ...item, titulo: `Limite: ${item.titulo}`, fecha_limite: item.fecha_limite_envio });
       if (item.fecha_envio) events.push({ ...item, titulo: `Enviada: ${item.titulo}`, fecha_limite: item.fecha_envio, estatus: "Enviada" });
+      if (item.fecha_seguimiento) events.push({ ...item, titulo: `Seguimiento: ${item.titulo}`, fecha_limite: item.fecha_seguimiento, estatus: item.estatus || "En tramite" });
       return events;
     });
 }
@@ -1263,15 +1265,15 @@ function getRelationOptions(table, record, definition) {
 
 function renderRecord(record, definition) {
   const title = record[definition.primary] || "Sin titulo";
-  const meta = getRecordMeta(record, definition);
   const status = record.estatus || record.prioridad || record.tipo_documento || "Registrado";
-  const schedule = definition.table === "licitaciones" ? renderBidSchedule(record) : "";
+  const details = getRecordDetails(record, definition);
   return `
     <div class="record-card">
       <div>
-        <strong>${title}</strong>
-        <span>${meta}</span>
-        ${schedule}
+        <strong class="record-title">${escapeHtml(title)}</strong>
+        <div class="record-details">
+          ${details.map(([label, value]) => `<span><b>${label}</b>${escapeHtml(value || "Sin capturar")}</span>`).join("")}
+        </div>
       </div>
       <span class="status" style="--status-color:${statusColors[status] || "#a9b5c8"}">${status}</span>
       <div class="record-actions">
@@ -1280,6 +1282,40 @@ function renderRecord(record, definition) {
       </div>
     </div>
   `;
+}
+
+function getRelatedBid(record) {
+  const related = record.licitacion_relacionada || "";
+  return store.licitaciones.find((item) => item.id === related || item.nombre === related || item.numero === related);
+}
+
+function getRecordDetails(record, definition) {
+  if (definition.table === "licitaciones") {
+    return [
+      ["Dependencia", record.dependencia],
+      ["Empresa", record.empresa_participante],
+    ];
+  }
+
+  if (definition.table === "fianzas_garantias") {
+    const bid = getRelatedBid(record);
+    return [
+      ["Licitacion", record.licitacion_relacionada],
+      ["Dependencia", record.dependencia || bid?.dependencia],
+      ["Empresa", bid?.empresa_participante],
+      ["Afianzadora", record.afianzadora],
+    ];
+  }
+
+  if (definition.table === "cotizaciones") {
+    return [
+      ["Dependencia", record.dependencia_solicitante],
+      ["Empresa", record.empresa_participante],
+      ["Seguimiento", record.fecha_seguimiento ? formatDate(record.fecha_seguimiento) : ""],
+    ];
+  }
+
+  return [["Relacion", getRecordMeta(record, definition)]];
 }
 
 function getRecordMeta(record, definition) {

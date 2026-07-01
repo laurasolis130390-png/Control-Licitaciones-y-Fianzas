@@ -926,16 +926,30 @@ td:nth-child(4) {
   display: block;
 }
 
-.record-card strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.record-title {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
 }
 
-.record-card div > span {
-  margin-top: 0.2rem;
+.record-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  gap: 0.28rem 1rem;
+  margin-top: 0.4rem;
+}
+
+.record-details span {
   color: var(--muted);
   font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.record-details b {
+  display: inline;
+  margin-right: 0.35rem;
+  color: #f2c84b;
+  font-size: 0.74rem;
 }
 
 .schedule-strip {
