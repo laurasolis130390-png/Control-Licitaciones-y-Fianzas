@@ -462,7 +462,8 @@ function prepareRecord(table, record) {
   }
 
   if (table === "fianzas_garantias" && cleanRecord.monto) {
-    cleanRecord.monto = Number(String(cleanRecord.monto).replace(/[^0-9.-]/g, "")).toFixed(2);
+    const rawAmount = String(cleanRecord.monto).replace(/,/g, "").replace(/[^0-9.-]/g, "");
+    cleanRecord.monto = Number(rawAmount || 0).toFixed(2);
   }
 
   if (table === "liberaciones" && cleanRecord.fianza_relacionada) {
@@ -1276,7 +1277,7 @@ function renderField([name, label, type, required, options], record = {}, defini
   }
 
   if (type === "money") {
-    return `<label class="field"><span>${label}</span><input name="${name}" type="number" min="0" step="0.01" value="${escapeHtml(value)}" ${required ? "required" : ""} /></label>`;
+    return `<label class="field"><span>${label}</span><input class="money-input" name="${name}" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00" value="${escapeHtml(value)}" ${required ? "required" : ""} /></label>`;
   }
 
   return `<label class="field"><span>${label}</span><input name="${name}" type="${type}" value="${escapeHtml(value)}" ${required ? "required" : ""} /></label>`;
