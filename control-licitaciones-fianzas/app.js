@@ -897,8 +897,6 @@ function getDueRecords() {
     ...store.licitaciones.flatMap((item) => getBidEvents(item)),
     ...store.empresas.flatMap((item) => getCompanyDocumentEvents(item)),
     ...store.fianzas_garantias.flatMap((item) => getBondEvents(item)),
-    ...store.liberaciones.map((item) => ({ ...item, titulo: item.tipo })),
-    ...store.pendientes,
   ];
 }
 
