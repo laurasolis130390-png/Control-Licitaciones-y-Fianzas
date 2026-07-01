@@ -307,18 +307,12 @@ h1 {
   margin-bottom: 1rem;
 }
 
-.priority-calendars {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  margin-bottom: 1rem;
-}
-
 .quote-calendar-panel {
-  min-height: 260px;
+  min-height: 300px;
 }
 
 .quote-calendar-panel .calendar {
-  max-width: 520px;
+  max-width: 100%;
   margin-inline: auto;
 }
 
@@ -340,6 +334,13 @@ h1 {
   min-height: 116px;
   padding: 1.3rem 1.15rem;
   overflow: hidden;
+  cursor: pointer;
+}
+
+.kpi-card:hover,
+.kpi-card:focus-visible {
+  border-color: color-mix(in srgb, var(--color), #ffffff 20%);
+  transform: translateY(-1px);
 }
 
 .kpi-card::after {
@@ -381,7 +382,7 @@ h1 {
   line-height: 1.22;
 }
 
-.kpi-card a {
+.kpi-action {
   position: absolute;
   right: 1rem;
   bottom: 0.9rem;
@@ -392,7 +393,7 @@ h1 {
   font-size: 0.82rem;
 }
 
-.kpi-card a svg {
+.kpi-action svg {
   width: 1rem;
 }
 

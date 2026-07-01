@@ -635,11 +635,11 @@ function getKpis() {
   }).length;
 
   return [
-    { title: "Licitaciones activas", value: licitacionesActivas, icon: "icon-file", color: "#3d8bff" },
-    { title: "Fianzas vigentes", value: fianzasVigentes, icon: "icon-shield", color: "#4fc768" },
-    { title: "Cotizaciones pendientes", value: cotizacionesPendientes, icon: "icon-stamp", color: "#ff8516" },
-    { title: "Proximos a vencer", value: proximos, icon: "icon-alert", color: "#ffc31f" },
-    { title: "Vencidos / atrasados", value: vencidos, icon: "icon-clock", color: "#ff4747" },
+    { title: "Licitaciones activas", value: licitacionesActivas, icon: "icon-file", color: "#3d8bff", module: "Licitaciones" },
+    { title: "Fianzas vigentes", value: fianzasVigentes, icon: "icon-shield", color: "#4fc768", module: "Fianzas y Garantias" },
+    { title: "Cotizaciones pendientes", value: cotizacionesPendientes, icon: "icon-stamp", color: "#ff8516", module: "Cotizaciones" },
+    { title: "Proximos a vencer", value: proximos, icon: "icon-alert", color: "#ffc31f", module: "Reportes" },
+    { title: "Vencidos / atrasados", value: vencidos, icon: "icon-clock", color: "#ff4747", module: "Reportes" },
   ];
 }
 
@@ -651,19 +651,6 @@ function renderDashboard() {
   document.querySelector("#viewRoot").innerHTML = `
     <section class="urgent-ribbon" id="urgentRibbon"></section>
     <section class="kpi-grid" id="kpiGrid" aria-label="Resumen general"></section>
-    <section class="priority-calendars">
-      <article class="panel calendar-panel quote-calendar-panel">
-        <div class="panel-header split">
-          <h2>${icon("icon-calendar")}Calendario de Cotizaciones</h2>
-          <div class="calendar-arrows quote-arrows">
-            <button class="icon-button compact" type="button" data-quote-month="-1" aria-label="Mes anterior">${icon("icon-chevron")}</button>
-            <button class="icon-button compact" type="button" data-quote-month="1" aria-label="Mes siguiente">${icon("icon-chevron")}</button>
-          </div>
-        </div>
-        <p class="calendar-month" id="quoteCalendarMonth"></p>
-        <div class="calendar" id="quoteCalendarGrid"></div>
-      </article>
-    </section>
     <section class="content-grid">
       <div class="left-stack">
         <article class="panel urgent-panel">
@@ -685,24 +672,6 @@ function renderDashboard() {
           </div>
           <a class="panel-link" href="#" data-go="Reportes">Ver reporte ${icon("icon-chevron")}</a>
         </article>
-        <section class="chart-grid">
-          <article class="panel chart-panel">
-            <h2>Licitaciones por estatus</h2>
-            <div class="donut-layout">
-              <div class="donut licitaciones" id="bidsDonut"><span>0<small>Total</small></span></div>
-              <div class="legend" id="bidLegend"></div>
-            </div>
-            <a class="panel-link" href="#" data-go="Reportes">Ver reporte completo ${icon("icon-chevron")}</a>
-          </article>
-          <article class="panel chart-panel">
-            <h2>Documentos por estatus</h2>
-            <div class="donut-layout">
-              <div class="donut documentos" id="docsDonut"><span>0<small>Total</small></span></div>
-              <div class="legend" id="docLegend"></div>
-            </div>
-            <a class="panel-link" href="#" data-go="Reportes">Ver reporte completo ${icon("icon-chevron")}</a>
-          </article>
-        </section>
       </div>
       <aside class="right-stack">
         <article class="panel calendar-panel">
@@ -721,6 +690,17 @@ function renderDashboard() {
             <span><i class="dot green"></i>Pendientes</span>
             <span><i class="dot grey"></i>Trabajado</span>
           </div>
+        </article>
+        <article class="panel calendar-panel quote-calendar-panel">
+          <div class="panel-header split">
+            <h2>${icon("icon-calendar")}Calendario de Cotizaciones</h2>
+            <div class="calendar-arrows quote-arrows">
+              <button class="icon-button compact" type="button" data-quote-month="-1" aria-label="Mes anterior">${icon("icon-chevron")}</button>
+              <button class="icon-button compact" type="button" data-quote-month="1" aria-label="Mes siguiente">${icon("icon-chevron")}</button>
+            </div>
+          </div>
+          <p class="calendar-month" id="quoteCalendarMonth"></p>
+          <div class="calendar" id="quoteCalendarGrid"></div>
         </article>
         <article class="panel due-panel">
           <h2>${icon("icon-clock")}Proximos a vencer</h2>
@@ -744,7 +724,6 @@ function renderDashboard() {
   renderCalendar();
   renderQuoteCalendar();
   renderDueList();
-  renderLegends();
   bindDashboardLinks();
   bindCalendarEvents();
   bindCalendarNavigation();
@@ -754,13 +733,13 @@ function renderKpis() {
   document.querySelector("#kpiGrid").innerHTML = getKpis()
     .map(
       (item) => `
-        <article class="kpi-card" style="--color:${item.color}; --glow:${item.color}">
+        <article class="kpi-card" style="--color:${item.color}; --glow:${item.color}" data-go="${item.module}" role="button" tabindex="0">
           <div class="kpi-icon">${icon(item.icon)}</div>
           <div>
             <strong>${item.value}</strong>
             <p>${item.title}</p>
           </div>
-          <a href="#">Ver todas ${icon("icon-chevron")}</a>
+          <span class="kpi-action">Ver todas ${icon("icon-chevron")}</span>
         </article>
       `,
     )
@@ -1026,8 +1005,13 @@ function bindDashboardLinks() {
   document.querySelectorAll("[data-go]").forEach((item) => {
     item.addEventListener("click", (event) => {
       event.preventDefault();
-      activeModule = item.dataset.go;
-      renderApp();
+      activateModule(item.dataset.go);
+    });
+    item.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        activateModule(item.dataset.go);
+      }
     });
   });
 }
