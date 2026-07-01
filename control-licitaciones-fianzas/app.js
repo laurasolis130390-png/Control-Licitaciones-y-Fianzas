@@ -659,7 +659,7 @@ function renderDashboard() {
     <section class="content-grid">
       <div class="left-stack">
         <article class="panel urgent-panel">
-          <div class="panel-header"><h2>${icon("icon-flag")}Estatus pendientes</h2></div>
+          <div class="panel-header"><h2>${icon("icon-flag")}Seguimientos de Fianzas y Garantias</h2></div>
           <div class="table-wrap">
             <table>
               <thead>
@@ -674,6 +674,24 @@ function renderDashboard() {
               </thead>
               <tbody id="urgentRows"></tbody>
             </table>
+          </div>
+          <div class="pending-section">
+            <div class="panel-header"><h2>${icon("icon-stamp")}Pendientes Cotizaciones</h2></div>
+            <div class="table-wrap">
+              <table class="compact-table">
+                <thead>
+                  <tr>
+                    <th>Prioridad</th>
+                    <th>Cotizacion</th>
+                    <th>Dependencia</th>
+                    <th>Empresa</th>
+                    <th>Fecha</th>
+                    <th>Estatus</th>
+                  </tr>
+                </thead>
+                <tbody id="quotePendingRows"></tbody>
+              </table>
+            </div>
           </div>
           <a class="panel-link" href="#" data-go="Reportes">Ver reporte ${icon("icon-chevron")}</a>
         </article>
@@ -726,6 +744,7 @@ function renderDashboard() {
   renderUrgentRibbon();
   renderKpis();
   renderUrgentRows();
+  renderQuotePendingRows();
   renderCalendar();
   renderQuoteCalendar();
   renderDueList();
@@ -752,7 +771,7 @@ function renderKpis() {
 }
 
 function renderUrgentRows() {
-  const rows = getDueRecords()
+  const rows = getBondFollowupRecords()
     .filter((item) => ["Pendiente", "Proximo a vencer", "Vencido", "En tramite", "Observado"].includes(item.estatus || "Pendiente"))
     .sort((a, b) => getUrgentSortDate(a).localeCompare(getUrgentSortDate(b)))
     .slice(0, 5);
@@ -784,6 +803,34 @@ function renderUrgentRows() {
   bindUrgentRows(rows);
 }
 
+function renderQuotePendingRows() {
+  const rows = getQuotePendingRecords().sort((a, b) => a.fecha_limite.localeCompare(b.fecha_limite)).slice(0, 5);
+  const target = document.querySelector("#quotePendingRows");
+  if (!target) return;
+
+  target.innerHTML = rows.length
+    ? rows
+        .map((item, index) => {
+          const left = daysUntil(item.fecha_limite);
+          const priorityClass = left < 0 || left <= 2 ? "alta" : "media";
+          const dateClass = left < 0 ? "date-red" : left <= 2 ? "date-orange" : "date-yellow";
+          return `
+            <tr class="clickable-row" data-quote-pending-index="${index}" role="button" tabindex="0">
+              <td><span class="pill ${priorityClass}">${left < 0 ? "Vencido" : "Alta"}</span></td>
+              <td>${escapeHtml(item.titulo || "Cotizacion")}</td>
+              <td>${escapeHtml(item.dependencia_solicitante || "Sin capturar")}</td>
+              <td>${escapeHtml(item.empresa_participante || "Sin capturar")}</td>
+              <td class="${dateClass}">${formatDate(item.fecha_limite)}</td>
+              <td><span class="status" style="--status-color:${statusColors[item.estatus] || "#a9b5c8"}">${item.estatus || "Pendiente"}</span></td>
+            </tr>
+          `;
+        })
+        .join("")
+    : `<tr><td colspan="6"><div class="empty-state small">Sin cotizaciones por atender en los proximos 2 dias.</div></td></tr>`;
+
+  bindQuotePendingRows(rows);
+}
+
 function getUrgentDisplayDate(item) {
   return item.fecha_seguimiento || (item.event_type === "seguimiento_fianza" ? item.fecha_limite : "") || "";
 }
@@ -800,6 +847,19 @@ function getUrgentBidLabel(item) {
 function bindUrgentRows(rows) {
   document.querySelectorAll("[data-urgent-index]").forEach((row) => {
     const open = () => showUrgentDetail(rows[Number(row.dataset.urgentIndex)]);
+    row.addEventListener("click", open);
+    row.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        open();
+      }
+    });
+  });
+}
+
+function bindQuotePendingRows(rows) {
+  document.querySelectorAll("[data-quote-pending-index]").forEach((row) => {
+    const open = () => showQuotePendingDetail(rows[Number(row.dataset.quotePendingIndex)]);
     row.addEventListener("click", open);
     row.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
@@ -828,6 +888,23 @@ function showUrgentDetail(item) {
     <strong>Fecha de seguimiento</strong><span>${displayDate ? formatDate(displayDate) : "Sin fecha"}</span>
     <strong>Estatus</strong><span>${escapeHtml(item.estatus || "Pendiente")}</span>
     ${item.afianzadora ? `<strong>Afianzadora</strong><span>${escapeHtml(item.afianzadora)}</span>` : ""}
+  `;
+  modal.hidden = false;
+}
+
+function showQuotePendingDetail(item) {
+  if (!item) return;
+
+  const modal = document.querySelector("#eventModal");
+  const title = document.querySelector("#eventModalTitle");
+  const body = document.querySelector("#eventModalBody");
+  title.textContent = item.titulo || "Detalle de cotizacion";
+  body.innerHTML = `
+    <strong>Dependencia</strong><span>${escapeHtml(item.dependencia_solicitante || "Sin capturar")}</span>
+    <strong>Empresa</strong><span>${escapeHtml(item.empresa_participante || "Sin capturar")}</span>
+    <strong>Tipo de pendiente</strong><span>${escapeHtml(item.event_type === "cotizacion_seguimiento" ? "Fecha de seguimiento" : "Fecha limite para enviar")}</span>
+    <strong>Fecha</strong><span>${item.fecha_limite ? formatDate(item.fecha_limite) : "Sin fecha"}</span>
+    <strong>Estatus</strong><span>${escapeHtml(item.estatus || "Pendiente")}</span>
   `;
   modal.hidden = false;
 }
@@ -901,15 +978,45 @@ function getDueRecords() {
   ];
 }
 
+function getBondFollowupRecords() {
+  return store.fianzas_garantias
+    .filter((item) => item.fecha_seguimiento && !["Trabajado", "Liberado", "Cancelado"].includes(item.estatus))
+    .map((item) => ({ ...item, titulo: `Seguimiento: ${item.tipo}`, fecha_limite: item.fecha_seguimiento, event_type: "seguimiento_fianza" }));
+}
+
 function getBondEvents(item) {
   const events = [];
-  if (item.fecha_vencimiento) {
+  const expirationLeft = daysUntil(item.fecha_vencimiento);
+  if (item.fecha_vencimiento && expirationLeft !== null && expirationLeft >= 0 && expirationLeft <= 30) {
     events.push({ ...item, titulo: `Vencimiento: ${item.tipo}`, fecha_limite: item.fecha_vencimiento });
   }
   if (item.fecha_seguimiento) {
     events.push({ ...item, titulo: `Seguimiento: ${item.tipo}`, fecha_limite: item.fecha_seguimiento, event_type: "seguimiento_fianza" });
   }
   return events;
+}
+
+function getQuotePendingRecords() {
+  return store.cotizaciones.flatMap((item) => {
+    if (["Trabajado", "Cancelado"].includes(item.estatus)) return [];
+
+    const records = [];
+    if (item.fecha_seguimiento) {
+      const left = daysUntil(item.fecha_seguimiento);
+      if (left !== null && left <= 2) {
+        records.push({ ...item, titulo: `Seguimiento: ${item.titulo}`, fecha_limite: item.fecha_seguimiento, event_type: "cotizacion_seguimiento" });
+      }
+    }
+
+    if (item.fecha_limite_envio && item.estatus !== "Enviada") {
+      const left = daysUntil(item.fecha_limite_envio);
+      if (left !== null && left <= 2) {
+        records.push({ ...item, titulo: `Limite envio: ${item.titulo}`, fecha_limite: item.fecha_limite_envio, event_type: "cotizacion_limite" });
+      }
+    }
+
+    return records;
+  });
 }
 
 function getQuoteEvents() {

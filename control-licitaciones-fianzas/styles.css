@@ -440,6 +440,21 @@ h1 {
   border-bottom: 1px solid var(--line);
 }
 
+.pending-section {
+  margin-top: 1.2rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(154, 177, 209, 0.14);
+}
+
+.pending-section .panel-header {
+  margin-bottom: 0.35rem;
+  padding-bottom: 0.7rem;
+}
+
+.compact-table {
+  min-width: 940px;
+}
+
 .table-wrap {
   overflow-x: auto;
 }
