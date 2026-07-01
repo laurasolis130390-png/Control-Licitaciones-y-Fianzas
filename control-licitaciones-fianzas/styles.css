@@ -441,7 +441,7 @@ h1 {
 }
 
 .table-wrap {
-  overflow: hidden;
+  overflow-x: auto;
 }
 
 table {
@@ -462,6 +462,22 @@ td {
   border-top: 1px solid rgba(154, 177, 209, 0.12);
   color: #eef3fa;
   vertical-align: middle;
+}
+
+.clickable-row {
+  cursor: pointer;
+}
+
+.clickable-row:hover,
+.clickable-row:focus-visible {
+  background: rgba(85, 167, 255, 0.07);
+  outline: none;
+}
+
+.wide-cell {
+  min-width: 320px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 td:nth-child(3),

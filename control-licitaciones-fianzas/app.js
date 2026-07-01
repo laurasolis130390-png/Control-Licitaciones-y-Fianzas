@@ -665,9 +665,9 @@ function renderDashboard() {
                 <tr>
                   <th>Prioridad</th>
                   <th>Pendiente</th>
-                  <th>Licitacion</th>
-                  <th>Dependencia</th>
-                  <th>Fecha limite</th>
+                  <th>Licitacion relacionada</th>
+                  <th>Empresa</th>
+                  <th>Fecha de seguimiento</th>
                   <th>Estatus</th>
                 </tr>
               </thead>
@@ -753,28 +753,76 @@ function renderKpis() {
 function renderUrgentRows() {
   const rows = getDueRecords()
     .filter((item) => ["Pendiente", "Proximo a vencer", "Vencido", "En tramite", "Observado"].includes(item.estatus || "Pendiente"))
-    .sort((a, b) => (a.fecha_vencimiento || a.fecha_limite || "").localeCompare(b.fecha_vencimiento || b.fecha_limite || ""))
+    .sort((a, b) => getUrgentSortDate(a).localeCompare(getUrgentSortDate(b)))
     .slice(0, 5);
 
   document.querySelector("#urgentRows").innerHTML = rows.length
     ? rows
-        .map((item) => {
-          const priorityClass = daysUntil(item.fecha_vencimiento || item.fecha_limite) <= 7 ? "alta" : "media";
-          const left = daysUntil(item.fecha_vencimiento || item.fecha_limite);
+        .map((item, index) => {
+          const displayDate = getUrgentDisplayDate(item);
+          const priorityClass = daysUntil(displayDate) <= 7 ? "alta" : "media";
+          const left = daysUntil(displayDate);
           const dateClass = left < 0 ? "date-red" : left <= 7 ? "date-orange" : "date-yellow";
+          const bid = getRelatedBid(item);
+          const company = item.empresa_participante || bid?.empresa_participante || "";
           return `
-            <tr>
+            <tr class="clickable-row" data-urgent-index="${index}" role="button" tabindex="0">
               <td><span class="pill ${priorityClass}">${left < 0 ? "Vencido" : left <= 7 ? "Alta" : "Media"}</span></td>
-              <td>${item.titulo || ""}</td>
-              <td>${item.licitacion_relacionada || ""}</td>
-              <td>${item.dependencia || ""}</td>
-              <td class="${dateClass}">${formatDate(item.fecha_vencimiento || item.fecha_limite)}</td>
+              <td>${escapeHtml(item.titulo || "")}</td>
+              <td class="wide-cell">${escapeHtml(item.licitacion_relacionada || "")}</td>
+              <td>${escapeHtml(company || "Sin capturar")}</td>
+              <td class="${dateClass}">${displayDate ? formatDate(displayDate) : "Sin fecha"}</td>
               <td><span class="status" style="--status-color:${statusColors[item.estatus] || "#a9b5c8"}">${item.estatus || "Pendiente"}</span></td>
             </tr>
           `;
         })
         .join("")
     : `<tr><td colspan="6"><div class="empty-state small">Sin eventos pendientes o proximos.</div></td></tr>`;
+
+  bindUrgentRows(rows);
+}
+
+function getUrgentDisplayDate(item) {
+  return item.fecha_seguimiento || (item.event_type === "seguimiento_fianza" ? item.fecha_limite : "") || "";
+}
+
+function getUrgentSortDate(item) {
+  return getUrgentDisplayDate(item) || item.fecha_limite || item.fecha_vencimiento || "9999-12-31";
+}
+
+function bindUrgentRows(rows) {
+  document.querySelectorAll("[data-urgent-index]").forEach((row) => {
+    const open = () => showUrgentDetail(rows[Number(row.dataset.urgentIndex)]);
+    row.addEventListener("click", open);
+    row.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        open();
+      }
+    });
+  });
+}
+
+function showUrgentDetail(item) {
+  if (!item) return;
+
+  const modal = document.querySelector("#eventModal");
+  const title = document.querySelector("#eventModalTitle");
+  const body = document.querySelector("#eventModalBody");
+  const bid = getRelatedBid(item);
+  const company = item.empresa_participante || bid?.empresa_participante || "";
+  const displayDate = getUrgentDisplayDate(item);
+
+  title.textContent = item.titulo || "Detalle del pendiente";
+  body.innerHTML = `
+    <strong>Licitacion relacionada</strong><span>${escapeHtml(item.licitacion_relacionada || "Sin capturar")}</span>
+    <strong>Empresa</strong><span>${escapeHtml(company || "Sin capturar")}</span>
+    <strong>Dependencia</strong><span>${escapeHtml(item.dependencia || bid?.dependencia || "Sin capturar")}</span>
+    <strong>Fecha de seguimiento</strong><span>${displayDate ? formatDate(displayDate) : "Sin fecha"}</span>
+    <strong>Estatus</strong><span>${escapeHtml(item.estatus || "Pendiente")}</span>
+    ${item.afianzadora ? `<strong>Afianzadora</strong><span>${escapeHtml(item.afianzadora)}</span>` : ""}
+  `;
+  modal.hidden = false;
 }
 
 function renderCalendar() {
