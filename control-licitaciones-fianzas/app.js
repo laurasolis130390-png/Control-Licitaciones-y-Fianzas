@@ -1329,9 +1329,10 @@ function getRelationOptions(table, record, definition) {
   }
 
   if (table === "licitaciones") {
-    const options = store.licitaciones.map((item) => [item.nombre, `${item.nombre}${item.numero ? ` · ${item.numero}` : ""}`]);
+    const options = store.licitaciones.map((item) => [item.id, getBidDisplayName(item)]);
     if (record?.licitacion_relacionada && !options.some(([value]) => value === record.licitacion_relacionada)) {
-      options.unshift([record.licitacion_relacionada, record.licitacion_relacionada]);
+      const bid = getRelatedBid(record);
+      options.unshift([record.licitacion_relacionada, getBidDisplayName(bid) || record.licitacion_relacionada]);
     }
     return options;
   }
@@ -1371,14 +1372,30 @@ function renderRecord(record, definition) {
 }
 
 function getRelatedBid(record) {
-  const related = normalizeText(record.licitacion_relacionada || "");
+  const rawRelated = record.licitacion_relacionada || "";
+  const related = normalizeText(rawRelated);
   if (!related) return null;
 
-  return store.licitaciones.find((item) => {
+  const exactId = store.licitaciones.find((item) => item.id === rawRelated);
+  if (exactId) return exactId;
+
+  const relatedNumber = extractBidNumber(rawRelated);
+  if (relatedNumber) {
+    const byNumber = store.licitaciones.find((item) => normalizeText(item.numero || "") === relatedNumber);
+    if (byNumber) return byNumber;
+  }
+
+  const exact = store.licitaciones.find((item) => {
     const name = normalizeText(item.nombre || "");
     const number = normalizeText(item.numero || "");
     const full = normalizeText(getBidDisplayName(item));
-    return item.id === record.licitacion_relacionada || name === related || number === related || full === related || (name && related.includes(name)) || (number && related.includes(number));
+    return name === related || number === related || full === related;
+  });
+  if (exact) return exact;
+
+  return store.licitaciones.find((item) => {
+    const name = normalizeText(item.nombre || "");
+    return name && related.includes(name);
   });
 }
 
@@ -1394,6 +1411,16 @@ function normalizeText(value) {
     .replace(/\s+/g, " ")
     .trim()
     .toLowerCase();
+}
+
+function extractBidNumber(value) {
+  const text = String(value || "");
+  const candidates = store.licitaciones
+    .map((item) => item.numero)
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length);
+  const found = candidates.find((number) => normalizeText(text).includes(normalizeText(number)));
+  return found ? normalizeText(found) : "";
 }
 
 function getRecordDetails(record, definition) {
