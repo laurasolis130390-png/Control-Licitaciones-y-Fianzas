@@ -1359,7 +1359,7 @@ function renderRecord(record, definition) {
       <div>
         <strong class="record-title">${escapeHtml(title)}</strong>
         <div class="record-details">
-          ${details.map(([label, value]) => `<span><b>${label}</b>${escapeHtml(value || "Sin capturar")}</span>`).join("")}
+          ${details.map(([label, value, wide]) => `<span class="${wide ? "detail-wide" : ""}"><b>${label}</b>${escapeHtml(value || "Sin capturar")}</span>`).join("")}
         </div>
       </div>
       <span class="status" style="--status-color:${statusColors[status] || "#a9b5c8"}">${status}</span>
@@ -1401,6 +1401,7 @@ function getRecordDetails(record, definition) {
   if (definition.table === "licitaciones") {
     return [
       ["Año", record.anio_licitacion || getBidYear(record) || ""],
+      ["Numero", record.numero],
       ["Dependencia", record.dependencia],
       ["Empresa", record.empresa_participante],
     ];
@@ -1409,7 +1410,7 @@ function getRecordDetails(record, definition) {
   if (definition.table === "fianzas_garantias") {
     const bid = getRelatedBid(record);
     return [
-      ["Licitacion", record.licitacion_relacionada],
+      ["Licitacion", getBidDisplayName(bid) || record.licitacion_relacionada, true],
       ["Dependencia", record.dependencia || bid?.dependencia],
       ["Empresa", bid?.empresa_participante],
       ["Afianzadora", record.afianzadora],
