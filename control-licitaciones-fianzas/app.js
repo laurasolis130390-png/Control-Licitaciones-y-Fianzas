@@ -765,11 +765,12 @@ function renderUrgentRows() {
           const dateClass = left < 0 ? "date-red" : left <= 7 ? "date-orange" : "date-yellow";
           const bid = getRelatedBid(item);
           const company = item.empresa_participante || bid?.empresa_participante || "";
+          const bidLabel = getUrgentBidLabel(item);
           return `
             <tr class="clickable-row" data-urgent-index="${index}" role="button" tabindex="0">
               <td><span class="pill ${priorityClass}">${left < 0 ? "Vencido" : left <= 7 ? "Alta" : "Media"}</span></td>
               <td>${escapeHtml(item.titulo || "")}</td>
-              <td class="wide-cell">${escapeHtml(item.licitacion_relacionada || "")}</td>
+              <td class="wide-cell">${escapeHtml(bidLabel)}</td>
               <td>${escapeHtml(company || "Sin capturar")}</td>
               <td class="${dateClass}">${displayDate ? formatDate(displayDate) : "Sin fecha"}</td>
               <td><span class="status" style="--status-color:${statusColors[item.estatus] || "#a9b5c8"}">${item.estatus || "Pendiente"}</span></td>
@@ -788,6 +789,11 @@ function getUrgentDisplayDate(item) {
 
 function getUrgentSortDate(item) {
   return getUrgentDisplayDate(item) || item.fecha_limite || item.fecha_vencimiento || "9999-12-31";
+}
+
+function getUrgentBidLabel(item) {
+  const bid = getRelatedBid(item);
+  return getBidDisplayName(bid) || item.licitacion_relacionada || "";
 }
 
 function bindUrgentRows(rows) {
@@ -815,7 +821,7 @@ function showUrgentDetail(item) {
 
   title.textContent = item.titulo || "Detalle del pendiente";
   body.innerHTML = `
-    <strong>Licitacion relacionada</strong><span>${escapeHtml(item.licitacion_relacionada || "Sin capturar")}</span>
+    <strong>Licitacion relacionada</strong><span>${escapeHtml(getUrgentBidLabel(item) || "Sin capturar")}</span>
     <strong>Empresa</strong><span>${escapeHtml(company || "Sin capturar")}</span>
     <strong>Dependencia</strong><span>${escapeHtml(item.dependencia || bid?.dependencia || "Sin capturar")}</span>
     <strong>Fecha de seguimiento</strong><span>${displayDate ? formatDate(displayDate) : "Sin fecha"}</span>
@@ -962,6 +968,10 @@ function getEventColor(item, left = daysUntil(item.fecha_vencimiento || item.fec
 }
 
 function getBidEvents(item) {
+  if (["Adjudicada", "Trabajado", "Cancelado", "No adjudicada"].includes(item.estatus)) {
+    return [];
+  }
+
   return [
     ["Visita", item.fecha_visita, item.hora_visita, item.estatus_visita],
     ["Junta de aclaraciones", item.fecha_junta_aclaraciones, item.hora_junta_aclaraciones, item.estatus_junta_aclaraciones],
@@ -969,10 +979,12 @@ function getBidEvents(item) {
     ["Fallo", item.fecha_fallo, item.hora_fallo, item.estatus_fallo],
   ]
     .filter(([, date]) => date)
+    .filter(([, , , eventStatus]) => !["Trabajado", "Cancelado", "No aplica"].includes(eventStatus))
     .map(([label, date, time, eventStatus]) => ({
       id: `${item.id}-${label}`,
       titulo: `${label}: ${item.nombre}`,
-      licitacion_relacionada: item.nombre,
+      licitacion_relacionada: getBidDisplayName(item),
+      empresa_participante: item.empresa_participante,
       dependencia: item.dependencia,
       fecha_limite: date,
       hora_limite: time,
@@ -1360,8 +1372,29 @@ function renderRecord(record, definition) {
 }
 
 function getRelatedBid(record) {
-  const related = record.licitacion_relacionada || "";
-  return store.licitaciones.find((item) => item.id === related || item.nombre === related || item.numero === related);
+  const related = normalizeText(record.licitacion_relacionada || "");
+  if (!related) return null;
+
+  return store.licitaciones.find((item) => {
+    const name = normalizeText(item.nombre || "");
+    const number = normalizeText(item.numero || "");
+    const full = normalizeText(getBidDisplayName(item));
+    return item.id === record.licitacion_relacionada || name === related || number === related || full === related || (name && related.includes(name)) || (number && related.includes(number));
+  });
+}
+
+function getBidDisplayName(record) {
+  if (!record) return "";
+  return [record.nombre, record.numero].filter(Boolean).join(" - ");
+}
+
+function normalizeText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
 }
 
 function getRecordDetails(record, definition) {

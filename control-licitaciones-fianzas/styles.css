@@ -446,6 +446,7 @@ h1 {
 
 table {
   width: 100%;
+  min-width: 1120px;
   border-collapse: collapse;
   font-size: 0.78rem;
 }
@@ -475,7 +476,7 @@ td {
 }
 
 .wide-cell {
-  min-width: 320px;
+  min-width: 520px;
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
