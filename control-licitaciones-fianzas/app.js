@@ -447,7 +447,11 @@ async function mergeLocalIntoSupabase(localStore, remoteStore) {
 }
 
 function prepareRecord(table, record) {
-  const cleanRecord = Object.fromEntries(Object.entries(record).filter(([, value]) => value !== ""));
+  const cleanRecord = Object.fromEntries(
+    Object.entries(record)
+      .filter(([, value]) => value !== "" || editingState?.id)
+      .map(([key, value]) => [key, value === "" && editingState?.id ? null : value]),
+  );
 
   if (editingState?.id) {
     const current = store[table]?.find((item) => item.id === editingState.id);
@@ -629,29 +633,18 @@ function getKpis() {
   const licitacionesActivas = store.licitaciones.filter((item) => !["Cancelado", "No adjudicada"].includes(item.estatus)).length;
   const fianzasVigentes = store.fianzas_garantias.filter((item) => item.estatus === "Vigente").length;
   const cotizacionesPendientes = store.cotizaciones.filter((item) => ["Pendiente", "En tramite"].includes(item.estatus)).length;
-  const dueSources = getDueRecords();
-  const proximos = dueSources.filter((item) => {
-    const left = daysUntil(item.fecha_vencimiento || item.fecha_limite);
-    return left !== null && left >= 0 && left <= 30;
-  }).length;
-  const vencidos = dueSources.filter((item) => {
-    const left = daysUntil(item.fecha_vencimiento || item.fecha_limite);
-    return left !== null && left < 0;
-  }).length;
 
   return [
     { title: "Licitaciones activas", value: licitacionesActivas, icon: "icon-file", color: "#3d8bff", module: "Licitaciones" },
     { title: "Fianzas vigentes", value: fianzasVigentes, icon: "icon-shield", color: "#4fc768", module: "Fianzas y Garantias" },
     { title: "Cotizaciones pendientes", value: cotizacionesPendientes, icon: "icon-stamp", color: "#ff8516", module: "Cotizaciones" },
-    { title: "Proximos a vencer", value: proximos, icon: "icon-alert", color: "#ffc31f", module: "Reportes" },
-    { title: "Vencidos / atrasados", value: vencidos, icon: "icon-clock", color: "#ff4747", module: "Reportes" },
   ];
 }
 
 function renderDashboard() {
   document.querySelector("h1").textContent = "¡Bienvenida, Laura!";
   document.querySelector(".topbar p").textContent = "Aqui tienes el resumen general de tus pendientes y licitaciones.";
-  document.querySelector("#notificationCount").textContent = getKpis()[4].value;
+  document.querySelector("#notificationCount").textContent = getQuotePendingRecords().length + getBondFollowupRecords().length;
 
   document.querySelector("#viewRoot").innerHTML = `
     <section class="urgent-ribbon" id="urgentRibbon"></section>
@@ -725,11 +718,6 @@ function renderDashboard() {
           <p class="calendar-month" id="quoteCalendarMonth"></p>
           <div class="calendar" id="quoteCalendarGrid"></div>
         </article>
-        <article class="panel due-panel">
-          <h2>${icon("icon-clock")}Proximos a vencer</h2>
-          <div id="dueList"></div>
-          <a class="panel-link" href="#" data-go="Reportes">Ver todos ${icon("icon-chevron")}</a>
-        </article>
       </aside>
     </section>
     <div class="event-modal" id="eventModal" hidden>
@@ -747,7 +735,6 @@ function renderDashboard() {
   renderQuotePendingRows();
   renderCalendar();
   renderQuoteCalendar();
-  renderDueList();
   bindDashboardLinks();
   bindCalendarEvents();
   bindCalendarNavigation();
@@ -1354,7 +1341,7 @@ function getBidYear(record) {
 }
 
 function renderField([name, label, type, required, options], record = {}, definition = {}) {
-  const value = record?.[name] || "";
+  const value = record?.[name] ?? "";
 
   if (type === "textarea") {
     return `<label class="field full"><span>${label}</span><textarea name="${name}" rows="3">${escapeHtml(value)}</textarea></label>`;
