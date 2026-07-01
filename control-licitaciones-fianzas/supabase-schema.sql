@@ -145,6 +145,7 @@ create table if not exists licitaciones (
   dependencia text,
   nombre text not null,
   numero text,
+  anio_licitacion integer,
   empresa_participante text,
   fecha_publicacion date,
   fecha_visita date,
@@ -167,6 +168,7 @@ create table if not exists licitaciones (
 );
 
 alter table licitaciones add column if not exists fecha_visita date;
+alter table licitaciones add column if not exists anio_licitacion integer;
 alter table licitaciones add column if not exists hora_visita time;
 alter table licitaciones add column if not exists estatus_visita text default 'Pendiente';
 alter table licitaciones add column if not exists hora_junta_aclaraciones time;

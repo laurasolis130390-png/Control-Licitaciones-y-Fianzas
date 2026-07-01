@@ -75,6 +75,7 @@ const moduleDefinitions = {
       ["dependencia", "Dependencia", "text"],
       ["nombre", "Nombre de licitacion", "text", true],
       ["numero", "Numero de licitacion", "text"],
+      ["anio_licitacion", "Año de la licitacion", "number"],
       ["empresa_participante", "Empresa participante", "relation", false, "empresas"],
       ["fecha_publicacion", "Fecha de publicacion", "date"],
       ["fecha_visita", "Fecha de visita", "date"],
@@ -256,6 +257,8 @@ const tableSelects = {
     "created_at",
     "updated_at",
   ].join(","),
+  licitaciones:
+    "id,dependencia,nombre,numero,anio_licitacion,empresa_participante,fecha_publicacion,fecha_visita,hora_visita,estatus_visita,fecha_junta_aclaraciones,hora_junta_aclaraciones,estatus_junta_aclaraciones,fecha_presentacion,hora_presentacion,estatus_presentacion,fecha_fallo,hora_fallo,estatus_fallo,estatus,responsable,observaciones,created_at,updated_at",
   fianzas_garantias: "id,tipo,licitacion_relacionada,dependencia,monto,afianzadora,numero_poliza,fecha_emision,fecha_vencimiento,fecha_seguimiento,estatus,archivo_pdf,observaciones,created_at,updated_at",
   liberaciones: "id,tipo,fianza_relacionada,licitacion_relacionada,dependencia,fecha_solicitud,fecha_limite,fecha_liberacion,estatus,oficio_solicitud,acuse,observaciones,created_at,updated_at",
   cotizaciones: "id,titulo,dependencia_solicitante,empresa_participante,fecha_solicitud,fecha_limite_envio,fecha_envio,fecha_seguimiento,estatus,observaciones,created_at,updated_at",
@@ -1085,7 +1088,7 @@ function bindCalendarNavigation() {
 
 function renderModule(moduleName) {
   const definition = moduleDefinitions[moduleName];
-  const rows = store[definition.table] || [];
+  const rows = getModuleRows(definition);
   const editingRecord = editingState?.module === moduleName ? rows.find((item) => item.id === editingState.id) : null;
   document.querySelector("h1").textContent = definition.title;
   document.querySelector(".topbar p").textContent = definition.subtitle;
@@ -1158,6 +1161,30 @@ function renderModule(moduleName) {
   if (moduleName === "Generador de Checklist") {
     bindChecklistGenerator();
   }
+}
+
+function getModuleRows(definition) {
+  const rows = [...(store[definition.table] || [])];
+  if (definition.table !== "licitaciones") {
+    return rows;
+  }
+
+  return rows.sort((a, b) => {
+    const yearDiff = getBidYear(b) - getBidYear(a);
+    if (yearDiff) return yearDiff;
+    return String(b.created_at || "").localeCompare(String(a.created_at || ""));
+  });
+}
+
+function getBidYear(record) {
+  const explicitYear = Number(record.anio_licitacion);
+  if (explicitYear) return explicitYear;
+
+  const dateValue = record.fecha_publicacion || record.fecha_presentacion || record.fecha_fallo || record.created_at;
+  if (!dateValue) return 0;
+
+  const year = new Date(`${String(dateValue).slice(0, 10)}T00:00:00`).getFullYear();
+  return Number.isNaN(year) ? 0 : year;
 }
 
 function renderField([name, label, type, required, options], record = {}, definition = {}) {
@@ -1292,6 +1319,7 @@ function getRelatedBid(record) {
 function getRecordDetails(record, definition) {
   if (definition.table === "licitaciones") {
     return [
+      ["Año", record.anio_licitacion || getBidYear(record) || ""],
       ["Dependencia", record.dependencia],
       ["Empresa", record.empresa_participante],
     ];
