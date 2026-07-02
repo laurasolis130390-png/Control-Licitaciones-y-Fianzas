@@ -280,6 +280,80 @@ const statusColors = {
   "No adjudicada": "#ff8516",
 };
 
+const lpn035Checklist = {
+  number: "DGSUS/LPN/035/2026",
+  title: "Caminos de Mujeres Libres y Seguras - Paquete 35",
+  stats: [
+    ["Eventos clave", "5"],
+    ["Anexos", "53"],
+    ["Docs. tecnicos", "39"],
+    ["Docs. economicos", "17"],
+  ],
+  events: [
+    ["Visita al sitio", "2026-07-08", "17:00", "Escrito de designacion, acreditacion profesional, identificaciones y vehiculo propio."],
+    ["Junta de aclaraciones", "2026-07-14", "17:00", "Escrito de interes, Anexo 02 firmado, preguntas con numeral y envio previo por correo."],
+    ["Presentacion y apertura", "2026-07-20", "17:00", "Sobre unico, originales para cotejo fuera del sobre, muestras y USB."],
+    ["Fallo", "2026-07-24", "17:00", "Acreditacion de quien asista; si cambia la persona, debe acreditarse nuevamente."],
+    ["Firma de contrato", "2026-07-30", "13:00", "Solo adjudicado: preparar fianza, seguro y documentos posteriores."],
+  ],
+  tabs: [
+    {
+      key: "etapas",
+      title: "Por etapa",
+      items: [
+        ["Visita", "Llevar escrito en papel membretado firmado por representante legal; anexar cedula/titulo/carta pasante, INE o pasaporte y copia INE del representante legal."],
+        ["Junta", "Presentar escrito de interes y designacion, acreditar personal calificado, entregar Anexo 02 firmado y enviar preguntas 24 horas antes."],
+        ["Apertura", "Entregar sobre unico cerrado, firmado y sellado; separar legal-administrativa/tecnica y economica; foliar y firmar todas las fojas utiles."],
+        ["Fallo", "Acreditar nuevamente a quien asista si no es la misma persona; recibir acta y revisar razones de aceptacion/rechazo."],
+        ["Ganador", "Fianza de cumplimiento/vicios, seguro RC, avisos IMSS, tramites ambientales, residuos y plan de manejo si aplica."],
+      ],
+    },
+    {
+      key: "propuestas",
+      title: "Propuestas",
+      items: [
+        ["Legal-administrativa T.1-T.17", "Pago de bases, registro SOBSE, acreditacion legal, domicilio, poderes, manifiestos, fiscal, estados financieros y opiniones SAT/IMSS/INFONAVIT."],
+        ["Tecnica T.18-T.39", "Experiencia, contratos, CV personal, planeacion integral, programas sin montos, maquinaria, cartas de fabricante, muestras, pruebas y certificados."],
+        ["Economica E.1-E.17", "Carta compromiso, garantia de seriedad, catalogo, precios unitarios, costos, programas con montos, aportacion voluntaria y USB."],
+        ["Originales para cotejo", "Recibo de bases, registro SOBSE, documentos legales, identificaciones, poderes, estados financieros y los que pidan visita/junta."],
+        ["Digital", "Archivos separados por documento: tecnica en PDF y economica E.3 a E.15.5 en XLSX, foliados y firmados antes de digitalizar."],
+      ],
+    },
+    {
+      key: "garantias",
+      title: "Garantias",
+      items: [
+        ["Seriedad", "Cheque cruzado o fianza a favor de la Secretaria de Administracion y Finanzas CDMX; se integra en E.2 / Anexo 29."],
+        ["Cumplimiento y vicios ocultos", "Fianza multiple por 10% del contrato con IVA; presentar dentro de 10 dias habiles desde adjudicacion; vigencia 12 meses desde acta entrega-recepcion."],
+        ["Responsabilidad civil", "Poliza y contrato de seguro por 10% del contrato con IVA; presentar dentro de 5 dias habiles posteriores a firma."],
+        ["Anticipo", "No aplica: las bases indican que no se otorgara anticipo."],
+      ],
+    },
+    {
+      key: "posterior",
+      title: "Posterior",
+      items: [
+        ["IMSS", "Adjudicado debe entregar aviso de inscripcion de todo el personal propuesto dentro de 3 dias habiles posteriores a firma."],
+        ["Ambiental", "Acuse de tramite de Declaratoria de Impacto Ambiental dentro de 15 dias naturales improrrogables despues de firma."],
+        ["Consulta o declaratoria", "Entregar consulta de tramite aplicable o declaratoria a mas tardar 30 dias despues del inicio de trabajos."],
+        ["Residuos RCD", "Separar, identificar y enviar residuos a plantas autorizadas; usar la mas cercana y materiales reciclados cuando sea viable."],
+        ["Plan de manejo", "Si se generan mas de 7 m3 de residuos, contar con Plan de Manejo de Residuos Solidos autorizado por SEDEMA."],
+      ],
+    },
+    {
+      key: "riesgos",
+      title: "Riesgos",
+      items: [
+        ["Garantia de seriedad", "Aclarar porcentaje/formula exacta para evitar calculo incorrecto."],
+        ["Constancia de visita", "Confirmar si se integra constancia, acta de visita o ambos documentos en T.24."],
+        ["Anexo 02", "Confirmar doble original: uno en junta y otro dentro de la propuesta."],
+        ["Muestras", "Confirmar cantidad, etiquetado, fichas y momento fisico de entrega."],
+        ["USB", "Confirmar si va dentro del sobre unico, dentro del economico o por separado."],
+      ],
+    },
+  ],
+};
+
 let activeModule = "Inicio";
 let store = createEmptyStore();
 let syncMode = "local";
@@ -1247,6 +1321,7 @@ function renderModule(moduleName) {
   document.querySelector(".topbar p").textContent = definition.subtitle;
 
   document.querySelector("#viewRoot").innerHTML = `
+    ${moduleName === "Licitaciones" ? renderLpn035OperationalPanel(rows) : ""}
     <section class="module-grid">
       <article class="panel form-panel">
         <div class="panel-header split">
@@ -1314,6 +1389,10 @@ function renderModule(moduleName) {
   if (moduleName === "Generador de Checklist") {
     bindChecklistGenerator();
   }
+
+  if (moduleName === "Licitaciones") {
+    bindLpn035OperationalPanel();
+  }
 }
 
 function getModuleRows(definition) {
@@ -1326,6 +1405,100 @@ function getModuleRows(definition) {
     const yearDiff = getBidYear(b) - getBidYear(a);
     if (yearDiff) return yearDiff;
     return String(b.created_at || "").localeCompare(String(a.created_at || ""));
+  });
+}
+
+function findLpn035Bid(rows) {
+  return rows.find((record) => {
+    const number = normalizeText(record.numero || "");
+    const title = normalizeText(record.nombre || "");
+    return number.includes(normalizeText(lpn035Checklist.number)) || title.includes("paquete 35") || title.includes("mujeres libres");
+  });
+}
+
+function renderLpn035OperationalPanel(rows) {
+  const bid = findLpn035Bid(rows);
+  const bidName = bid ? getBidDisplayName(bid) : lpn035Checklist.number;
+  const nextEvent = lpn035Checklist.events.find(([, date]) => {
+    const remaining = daysUntil(date);
+    return remaining !== null && remaining >= 0;
+  });
+
+  return `
+    <section class="lpn-panel" aria-label="Checklist operativo LPN 035">
+      <div class="lpn-hero">
+        <div>
+          <span class="lpn-kicker">Checklist integrado</span>
+          <h2>${escapeHtml(lpn035Checklist.title)}</h2>
+          <p>${escapeHtml(bidName)}${bid ? " ya esta capturada en el sistema." : " aun no fue detectada por numero exacto; revisa el registro capturado."}</p>
+        </div>
+        <div class="lpn-next">
+          <span>Proximo evento</span>
+          <strong>${nextEvent ? escapeHtml(nextEvent[0]) : "Sin eventos pendientes"}</strong>
+          <small>${nextEvent ? `${formatDate(nextEvent[1])} - ${escapeHtml(nextEvent[2])}` : "Calendario concluido"}</small>
+        </div>
+      </div>
+
+      <div class="lpn-stats">
+        ${lpn035Checklist.stats.map(([label, value]) => `<div><strong>${value}</strong><span>${label}</span></div>`).join("")}
+      </div>
+
+      <div class="lpn-timeline">
+        ${lpn035Checklist.events
+          .map(([label, date, time, note]) => {
+            const remaining = daysUntil(date);
+            const state = remaining === null ? "neutral" : remaining < 0 ? "done" : remaining <= 3 ? "hot" : "soon";
+            const labelText = remaining === null ? "" : remaining < 0 ? "Pasado" : remaining === 0 ? "Hoy" : `${remaining} dias`;
+            return `
+              <article class="lpn-event ${state}">
+                <span>${labelText}</span>
+                <strong>${escapeHtml(label)}</strong>
+                <small>${formatDate(date)} - ${escapeHtml(time)}</small>
+                <p>${escapeHtml(note)}</p>
+              </article>
+            `;
+          })
+          .join("")}
+      </div>
+
+      <div class="lpn-tabs" role="tablist" aria-label="Secciones del checklist">
+        ${lpn035Checklist.tabs.map((tab, index) => `<button type="button" class="${index === 0 ? "active" : ""}" data-lpn-tab="${tab.key}">${escapeHtml(tab.title)}</button>`).join("")}
+      </div>
+
+      <div class="lpn-tab-panels">
+        ${lpn035Checklist.tabs
+          .map(
+            (tab, index) => `
+              <div class="lpn-tab-panel ${index === 0 ? "active" : ""}" data-lpn-panel="${tab.key}">
+                ${tab.items
+                  .map(
+                    ([title, detail]) => `
+                      <label class="lpn-check">
+                        <input type="checkbox" />
+                        <span>
+                          <strong>${escapeHtml(title)}</strong>
+                          <small>${escapeHtml(detail)}</small>
+                        </span>
+                      </label>
+                    `,
+                  )
+                  .join("")}
+              </div>
+            `,
+          )
+          .join("")}
+      </div>
+    </section>
+  `;
+}
+
+function bindLpn035OperationalPanel() {
+  document.querySelectorAll("[data-lpn-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const key = button.dataset.lpnTab;
+      document.querySelectorAll("[data-lpn-tab]").forEach((item) => item.classList.toggle("active", item === button));
+      document.querySelectorAll("[data-lpn-panel]").forEach((panel) => panel.classList.toggle("active", panel.dataset.lpnPanel === key));
+    });
   });
 }
 

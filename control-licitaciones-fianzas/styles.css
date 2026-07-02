@@ -852,6 +852,238 @@ td:nth-child(4) {
   align-items: start;
 }
 
+.lpn-panel {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid rgba(255, 195, 31, 0.24);
+  border-radius: 8px;
+  background:
+    linear-gradient(145deg, rgba(20, 42, 68, 0.92), rgba(6, 17, 30, 0.92)),
+    var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.lpn-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.lpn-kicker {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  padding: 0 0.65rem;
+  color: #151a20;
+  font-size: 0.72rem;
+  font-weight: 900;
+  border-radius: 999px;
+  background: var(--gold);
+}
+
+.lpn-hero h2 {
+  margin-top: 0.75rem;
+  font-size: 1.35rem;
+}
+
+.lpn-hero p {
+  margin-top: 0.35rem;
+  color: var(--soft);
+  line-height: 1.45;
+}
+
+.lpn-next {
+  display: grid;
+  align-content: center;
+  gap: 0.25rem;
+  padding: 1rem;
+  border: 1px solid rgba(154, 177, 209, 0.16);
+  border-radius: 8px;
+  background: rgba(5, 14, 26, 0.56);
+}
+
+.lpn-next span,
+.lpn-next small {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.lpn-next strong {
+  color: var(--gold);
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.lpn-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.lpn-stats div {
+  min-height: 76px;
+  padding: 0.8rem;
+  border: 1px solid rgba(154, 177, 209, 0.14);
+  border-radius: 8px;
+  background: rgba(5, 14, 26, 0.44);
+}
+
+.lpn-stats strong,
+.lpn-stats span {
+  display: block;
+}
+
+.lpn-stats strong {
+  font-size: 1.65rem;
+  line-height: 1;
+}
+
+.lpn-stats span {
+  margin-top: 0.25rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.lpn-timeline {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.lpn-event {
+  min-height: 142px;
+  padding: 0.8rem;
+  border: 1px solid rgba(154, 177, 209, 0.14);
+  border-radius: 8px;
+  background: rgba(5, 14, 26, 0.42);
+}
+
+.lpn-event span {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  padding: 0 0.55rem;
+  color: #06111f;
+  font-size: 0.68rem;
+  font-weight: 900;
+  border-radius: 999px;
+  background: var(--muted);
+}
+
+.lpn-event.hot span {
+  background: var(--red);
+}
+
+.lpn-event.soon span {
+  background: var(--orange);
+}
+
+.lpn-event.done span {
+  color: #f3f7fb;
+  background: #6c7788;
+}
+
+.lpn-event strong,
+.lpn-event small,
+.lpn-event p {
+  display: block;
+}
+
+.lpn-event strong {
+  margin-top: 0.55rem;
+  line-height: 1.25;
+}
+
+.lpn-event small {
+  margin-top: 0.28rem;
+  color: var(--gold);
+  font-size: 0.72rem;
+}
+
+.lpn-event p {
+  margin-top: 0.45rem;
+  color: var(--muted);
+  font-size: 0.73rem;
+  line-height: 1.35;
+}
+
+.lpn-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  padding-top: 0.2rem;
+}
+
+.lpn-tabs button {
+  min-height: 36px;
+  padding: 0 0.75rem;
+  color: #dbe5f3;
+  font-weight: 800;
+  border: 1px solid rgba(154, 177, 209, 0.18);
+  border-radius: 8px;
+  background: rgba(5, 14, 26, 0.52);
+  cursor: pointer;
+}
+
+.lpn-tabs button.active,
+.lpn-tabs button:hover {
+  color: #151a20;
+  border-color: var(--gold);
+  background: var(--gold);
+}
+
+.lpn-tab-panels {
+  border-top: 1px solid rgba(154, 177, 209, 0.12);
+  padding-top: 0.8rem;
+}
+
+.lpn-tab-panel {
+  display: none;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.lpn-tab-panel.active {
+  display: grid;
+}
+
+.lpn-check {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 0.7rem;
+  min-height: 84px;
+  padding: 0.75rem;
+  border: 1px solid rgba(154, 177, 209, 0.14);
+  border-radius: 8px;
+  background: rgba(5, 14, 26, 0.42);
+}
+
+.lpn-check input {
+  width: 18px;
+  height: 18px;
+  margin-top: 0.2rem;
+  accent-color: var(--gold);
+}
+
+.lpn-check strong,
+.lpn-check small {
+  display: block;
+}
+
+.lpn-check strong {
+  color: #f6f9fd;
+  line-height: 1.25;
+}
+
+.lpn-check small {
+  margin-top: 0.3rem;
+  color: var(--muted);
+  line-height: 1.42;
+}
+
 .form-panel,
 .records-panel {
   min-height: 520px;
