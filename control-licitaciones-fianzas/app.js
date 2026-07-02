@@ -289,6 +289,153 @@ const lpn035Checklist = {
     ["Docs. tecnicos", "39"],
     ["Docs. economicos", "17"],
   ],
+  quickLists: {
+    eventos: {
+      title: "Eventos clave",
+      items: [
+        ["Visita al sitio", "08 julio 2026, 17:00 - Llevar escrito, acreditacion profesional, identificaciones y vehiculo propio."],
+        ["Junta de aclaraciones", "14 julio 2026, 17:00 - Llevar escrito de interes, Anexo 02 firmado y preguntas con numeral."],
+        ["Presentacion y apertura", "20 julio 2026, 17:00 - Sobre unico, originales para cotejo, muestras y USB."],
+        ["Fallo", "24 julio 2026, 17:00 - Acreditar a quien asista y recibir acta."],
+        ["Firma de contrato", "30 julio 2026, 13:00 - Solo ganador; preparar fianza, seguro y tramites posteriores."],
+      ],
+    },
+    anexos: {
+      title: "Anexos 01 a 53",
+      items: [
+        ["Anexo 01", "Carta de deceso"],
+        ["Anexo 02", "Datos basicos del participante"],
+        ["Anexo 03", "Nacionalidad mexicana"],
+        ["Anexo 04", "Domicilio fiscal/convencional y autorizacion de inspeccion"],
+        ["Anexo 05", "Carta poder"],
+        ["Anexo 06", "Declaracion de integridad"],
+        ["Anexo 07", "Capital contable y no quiebra/suspension"],
+        ["Anexo 08", "Proveedor salarialmente responsable"],
+        ["Anexo 09", "Especialidad y capacidad tecnica/financiera"],
+        ["Anexo 10", "Relacion de trabajos realizados"],
+        ["Anexo 11", "Conocimiento de instrucciones y bases"],
+        ["Anexo 12", "Conocimiento de contrato y fianza"],
+        ["Anexo 13", "Conocimiento de normativa"],
+        ["Anexo 14", "Conocimiento del sitio"],
+        ["Anexo 15", "Asistencia a juntas de aclaraciones"],
+        ["Anexo 16", "No subcontratacion o subcontratacion autorizada"],
+        ["Anexo 17", "Precios sin practicas desleales"],
+        ["Anexo 18", "Relacion de insumos sin montos"],
+        ["Anexo 19", "Relacion de mano de obra sin montos"],
+        ["Anexo 20", "Relacion de maquinaria/equipo sin montos"],
+        ["Anexo 21", "Propiedad, arrendamiento y ubicacion de maquinaria"],
+        ["Anexo 22", "Personal indirecto sin montos"],
+        ["Anexo 23", "Programa general sin montos"],
+        ["Anexo 24", "Programa de adquisicion de materiales sin montos"],
+        ["Anexo 25", "Programa de mano de obra sin montos"],
+        ["Anexo 26", "Programa de maquinaria sin montos"],
+        ["Anexo 27", "Programa de personal indirecto sin montos"],
+        ["Anexo 28", "Carta compromiso de propuesta"],
+        ["Anexo 29", "Garantia de seriedad"],
+        ["Anexo 30", "Catalogo de conceptos / alcances / terminos de referencia"],
+        ["Anexo 31", "Factor de salario real"],
+        ["Anexo 32", "Tabulador de salarios"],
+        ["Anexo 33", "Costo horario maquinaria/equipo"],
+        ["Anexo 34", "Basicos o auxiliares"],
+        ["Anexo 35", "Analisis de precios unitarios"],
+        ["Anexo 36", "Insumos con montos"],
+        ["Anexo 37", "Mano de obra con montos"],
+        ["Anexo 38", "Maquinaria/equipo con montos"],
+        ["Anexo 39", "Mantenimiento maquinaria y filtros/trampas"],
+        ["Anexo 40", "Resumen explosion de insumos"],
+        ["Anexo 41", "Personal indirecto con montos"],
+        ["Anexo 42", "Costos indirectos"],
+        ["Anexo 43", "Financiamiento"],
+        ["Anexo 44", "Utilidad"],
+        ["Anexo 45", "Cargos adicionales"],
+        ["Anexo 46", "Indirecto integrado"],
+        ["Anexo 47", "Programa general con montos"],
+        ["Anexo 48", "Programa adquisicion materiales con montos"],
+        ["Anexo 49", "Programa mano de obra con montos"],
+        ["Anexo 50", "Programa maquinaria con montos"],
+        ["Anexo 51", "Programa personal indirecto con montos"],
+        ["Anexo 52", "Camara/colegio y aportacion voluntaria"],
+        ["Anexo 53", "USB propuesta tecnica/economica digital"],
+      ],
+    },
+    tecnicos: {
+      title: "Documentos tecnicos T.1 a T.39",
+      items: [
+        ["T.1", "Propuesta conjunta o manifestacion de que no aplica"],
+        ["T.2", "Copia del recibo de pago de bases"],
+        ["T.3", "Constancia de registro SOBSE"],
+        ["T.4", "No estar en supuestos del articulo 37"],
+        ["T.5", "Acreditacion legal del concursante"],
+        ["T.6", "Datos basicos del participante"],
+        ["T.7", "Nacionalidad mexicana"],
+        ["T.8", "Domicilio fiscal y autorizacion de inspeccion"],
+        ["T.9", "Acreditacion de quien asiste al acto"],
+        ["T.10", "No inhabilitacion o sancion"],
+        ["T.11", "Ausencia de relaciones con servidores publicos"],
+        ["T.12", "Declaracion de integridad"],
+        ["T.13", "Capital contable y no quiebra/suspension"],
+        ["T.14", "Declaraciones fiscales y estados financieros"],
+        ["T.15", "Cumplimiento de obligaciones fiscales CDMX"],
+        ["T.15.1", "Opinion positiva SAT"],
+        ["T.15.2", "Opiniones positivas IMSS e INFONAVIT"],
+        ["T.16", "Proveedor salarialmente responsable"],
+        ["T.17", "Especialidad y capacidad tecnica/financiera"],
+        ["T.18", "Curriculum de la concursante"],
+        ["T.19", "Relacion de trabajos ultimos 5 anos"],
+        ["T.20", "Obras vigentes o manifestacion de no contar con ellas"],
+        ["T.21", "Conocimiento de instrucciones y bases"],
+        ["T.22", "Conocimiento del modelo de contrato y fianza"],
+        ["T.23", "Conocimiento de normativa aplicable"],
+        ["T.24", "Conocimiento del sitio y constancia de visita"],
+        ["T.25", "Asistencia a juntas de aclaraciones"],
+        ["T.26", "No subcontratacion o desglose autorizado"],
+        ["T.27", "Planeacion estrategica integral"],
+        ["T.28", "Organigrama de personal responsable"],
+        ["T.28.1", "CV del personal y cedulas"],
+        ["T.28.2", "Informe de mejoras o manifestacion"],
+        ["T.29", "Precios sin practicas desleales"],
+        ["T.30", "Relacion de insumos sin montos"],
+        ["T.31", "Relacion de mano de obra sin montos"],
+        ["T.32", "Relacion de maquinaria y equipo sin montos"],
+        ["T.33", "Personal tecnico/administrativo/obrero indirecto"],
+        ["T.34", "Programas calendarizados sin montos"],
+        ["T.35", "Carta de apoyo de fabricante/distribuidor"],
+        ["T.36", "Grado de integracion nacional"],
+        ["T.37", "Muestras y fichas tecnicas"],
+        ["T.38", "Informes de pruebas vigentes"],
+        ["T.39", "Certificados vigentes de cumplimiento de producto"],
+      ],
+    },
+    economicos: {
+      title: "Documentos economicos E.1 a E.17",
+      items: [
+        ["E.1", "Carta compromiso de la propuesta"],
+        ["E.2", "Garantia de seriedad"],
+        ["E.3", "Catalogo de conceptos"],
+        ["E.4", "Factor de salario nominal/real y tabulador"],
+        ["E.5", "Costo horario de maquinaria/equipo"],
+        ["E.6", "Basicos o auxiliares"],
+        ["E.7", "Analisis de precios unitarios"],
+        ["E.8.1", "Insumos con montos y cotizaciones"],
+        ["E.8.2", "Mano de obra con montos"],
+        ["E.8.3", "Maquinaria/equipo con montos y mantenimiento"],
+        ["E.8.4", "Resumen de explosion de insumos"],
+        ["E.9", "Personal indirecto con montos"],
+        ["E.10", "Costos indirectos"],
+        ["E.11", "Financiamiento e indicador economico"],
+        ["E.12", "Utilidad"],
+        ["E.13", "Cargos adicionales"],
+        ["E.14", "Indirecto integrado"],
+        ["E.15.1", "Programa general con montos"],
+        ["E.15.2", "Programa adquisicion materiales con montos"],
+        ["E.15.3", "Programa mano de obra con montos"],
+        ["E.15.4", "Programa maquinaria con montos"],
+        ["E.15.5", "Programa personal indirecto con montos"],
+        ["E.16", "Camara/colegio y aportacion voluntaria"],
+        ["E.17", "USB con propuesta tecnica PDF y economica XLSX"],
+      ],
+    },
+  },
   events: [
     ["Visita al sitio", "2026-07-08", "17:00", "Escrito de designacion, acreditacion profesional, identificaciones y vehiculo propio."],
     ["Junta de aclaraciones", "2026-07-14", "17:00", "Escrito de interes, Anexo 02 firmado, preguntas con numeral y envio previo por correo."],
@@ -1440,7 +1587,42 @@ function renderLpn035OperationalPanel(rows) {
       </div>
 
       <div class="lpn-stats">
-        ${lpn035Checklist.stats.map(([label, value]) => `<div><strong>${value}</strong><span>${label}</span></div>`).join("")}
+        ${[
+          ["eventos", "Eventos clave", "5"],
+          ["anexos", "Anexos", "53"],
+          ["tecnicos", "Docs. tecnicos", "39"],
+          ["economicos", "Docs. economicos", "17"],
+        ]
+          .map(([key, label, value], index) => `<button type="button" class="${index === 0 ? "active" : ""}" data-lpn-list="${key}"><strong>${value}</strong><span>${label}</span><small>Ver lista</small></button>`)
+          .join("")}
+      </div>
+
+      <div class="lpn-list-panels">
+        ${Object.entries(lpn035Checklist.quickLists)
+          .map(
+            ([key, list], index) => `
+              <article class="lpn-list-panel ${index === 0 ? "active" : ""}" data-lpn-list-panel="${key}">
+                <div class="panel-header split">
+                  <h2>${escapeHtml(list.title)}</h2>
+                  <span>${list.items.length} registros</span>
+                </div>
+                <div class="lpn-list-grid">
+                  ${list.items
+                    .map(
+                      ([code, detail]) => `
+                        <label class="lpn-list-row">
+                          <input type="checkbox" />
+                          <span class="lpn-list-code">${escapeHtml(code)}</span>
+                          <span>${escapeHtml(detail)}</span>
+                        </label>
+                      `,
+                    )
+                    .join("")}
+                </div>
+              </article>
+            `,
+          )
+          .join("")}
       </div>
 
       <div class="lpn-timeline">
@@ -1493,6 +1675,14 @@ function renderLpn035OperationalPanel(rows) {
 }
 
 function bindLpn035OperationalPanel() {
+  document.querySelectorAll("[data-lpn-list]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const key = button.dataset.lpnList;
+      document.querySelectorAll("[data-lpn-list]").forEach((item) => item.classList.toggle("active", item === button));
+      document.querySelectorAll("[data-lpn-list-panel]").forEach((panel) => panel.classList.toggle("active", panel.dataset.lpnListPanel === key));
+    });
+  });
+
   document.querySelectorAll("[data-lpn-tab]").forEach((button) => {
     button.addEventListener("click", () => {
       const key = button.dataset.lpnTab;
